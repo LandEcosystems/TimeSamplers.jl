@@ -1,7 +1,7 @@
 """
-TimeSampler
+TimeSamplers
 
-A package for temporal sampling, aggregation, and resampling of time series data in SINDBAD.
+A package for temporal sampling, aggregation, and resampling of time series data.
 
 # Overview
 
@@ -67,7 +67,7 @@ The package supports various time sampling methods:
 # Usage Example
 
 ```julia
-using TimeSampler
+using TimeSamplers
 using Dates
 
 # Create a date vector
@@ -93,7 +93,7 @@ daily_sampler = createTimeSampler(dates, TimeDay())
 - `createTimeSampler` for creating samplers
 - `doTimeSampling` for applying samplers to data
 """
-module TimeSampler
+module TimeSamplers
 using Dates
 using StatsBase
 
@@ -101,4 +101,4 @@ include("TimeSamplerTypes.jl")
 include("utilsTimeSampler.jl")
 include("createTimeSampler.jl")
 include("doTimeSampling.jl")
-end # module TimeSampler
+end # module TimeSamplers
