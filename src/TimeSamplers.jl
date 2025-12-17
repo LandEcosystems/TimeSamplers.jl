@@ -97,8 +97,8 @@ module TimeSamplers
 using Dates
 using StatsBase
 
-include("TimeSamplerTypes.jl")
-include("utilsTimeSampler.jl")
+include("TimeSamplersTypes.jl")
+include("utilsTimeSamplers.jl")
 include("createTimeSampler.jl")
 include("doTimeSampling.jl")
 end # module TimeSamplers
