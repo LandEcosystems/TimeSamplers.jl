@@ -89,6 +89,7 @@ open(types_path, "w") do io
     sort!(time_sampler_types, by=nameof)
     
     # Helper function to format type docstring without redundant headings
+    # Returns (formatted_docstring, hierarchy_line)
     function format_type_docstring(typ, purpose_function)
         docstr = get_type_docstring(typ, purpose_function=purpose_function)
         type_name = string(nameof(typ))
@@ -98,6 +99,7 @@ open(types_path, "w") do io
         result_lines = String[]
         skip_next_empty = false
         in_type_hierarchy = false
+        hierarchy_line = nothing
         
         for line in lines
             # Skip the # TypeName heading
@@ -125,9 +127,6 @@ open(types_path, "w") do io
                     # Remove code block markers and keep just the content
                     hierarchy_line = replace(line, r"```+" => "")
                     hierarchy_line = strip(hierarchy_line)
-                    if !isempty(hierarchy_line)
-                        push!(result_lines, hierarchy_line)
-                    end
                     in_type_hierarchy = false
                     continue
                 elseif isempty(strip(line))
@@ -138,7 +137,7 @@ open(types_path, "w") do io
             push!(result_lines, line)
         end
         
-        return join(result_lines, '\n')
+        return (join(result_lines, '\n'), hierarchy_line)
     end
     
     # Group by category
@@ -154,9 +153,14 @@ open(types_path, "w") do io
         for (idx, typ) in enumerate(basic_agg)
             type_name = string(nameof(typ))
             write(io, "$(type_name)\n\n")
-            formatted = format_type_docstring(typ, time_sampler_purpose)
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
             write(io, formatted)
             write(io, "\n\n")
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
             # Add separator between types, but not after the last one
             if idx < length(basic_agg)
                 write(io, "---\n\n")
@@ -170,9 +174,14 @@ open(types_path, "w") do io
         for (idx, typ) in enumerate(anomalies)
             type_name = string(nameof(typ))
             write(io, "$(type_name)\n\n")
-            formatted = format_type_docstring(typ, time_sampler_purpose)
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
             write(io, formatted)
             write(io, "\n\n")
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
             # Add separator between types, but not after the last one
             if idx < length(anomalies)
                 write(io, "---\n\n")
@@ -186,9 +195,14 @@ open(types_path, "w") do io
         for (idx, typ) in enumerate(climatological)
             type_name = string(nameof(typ))
             write(io, "$(type_name)\n\n")
-            formatted = format_type_docstring(typ, time_sampler_purpose)
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
             write(io, formatted)
             write(io, "\n\n")
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
             # Add separator between types, but not after the last one
             if idx < length(climatological)
                 write(io, "---\n\n")
@@ -202,9 +216,14 @@ open(types_path, "w") do io
         for (idx, typ) in enumerate(time_selection)
             type_name = string(nameof(typ))
             write(io, "$(type_name)\n\n")
-            formatted = format_type_docstring(typ, time_sampler_purpose)
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
             write(io, formatted)
             write(io, "\n\n")
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
             # Add separator between types, but not after the last one
             if idx < length(time_selection)
                 write(io, "---\n\n")
@@ -218,9 +237,14 @@ open(types_path, "w") do io
         for (idx, typ) in enumerate(special)
             type_name = string(nameof(typ))
             write(io, "$(type_name)\n\n")
-            formatted = format_type_docstring(typ, time_sampler_purpose)
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
             write(io, formatted)
             write(io, "\n\n")
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
             # Add separator between types, but not after the last one
             if idx < length(special)
                 write(io, "---\n\n")
