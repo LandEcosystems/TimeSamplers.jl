@@ -1,10 +1,12 @@
 using Pkg
 # Ensure OmniTools is available (for CI/CD where it's not registered)
-# Check if it's already in the manifest
-if !haskey(Pkg.manifest().deps, "OmniTools")
-    @info "OmniTools not in manifest, adding from git..."
-    # Use develop to avoid full dependency resolution
-    Pkg.develop(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main")
+# Add it before any other operations to avoid dependency resolution issues
+try
+    using OmniTools
+catch
+    @info "OmniTools not available, adding from git..."
+    Pkg.add(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main")
+    using OmniTools
 end
 
 using Documenter
