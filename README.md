@@ -82,7 +82,7 @@ daily_sampler = create_TimeSampler(dates, TimeDay())
 
 ## Documentation
 
-For detailed documentation, see the [TimeSamplers.jl documentation][docs-stable-url].
+For detailed documentation, see the [TimeSamplers.jl documentation](https://landecosystems.github.io/TimeSamplers.jl).
 
 ## License
 
