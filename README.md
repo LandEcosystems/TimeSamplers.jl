@@ -44,10 +44,10 @@ using Dates
 dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 12, 31))
 
 # Create a time sampler for daily aggregation
-daily_sampler = createTimeSampler(dates, TimeDay())
+daily_sampler = create_TimeSampler(dates, TimeDay())
 
 # Apply to data (assuming data is a 2D array with time as first dimension)
-# sampled_data = doTimeSampling(data, daily_sampler, TimeNoDiff())
+# sampled_data = do_time_sampling(data, daily_sampler, TimeNoDiff())
 ```
 
 ## Available Time Sampling Methods

@@ -59,10 +59,10 @@ The package supports various time sampling methods:
 
 # Main Functions
 
-- `createTimeSampler`: Create one or more `TimeSample` aggregators from a date vector and time step specification
-- `doTimeSampling`: Apply temporal sampling/aggregation to data using a vector of time samplers
-- `timeSampling`: Apply a single time sampler to an array
-- `getTimeSamplerInstance`: Get a time sampler method instance from a string or symbol
+- `create_TimeSampler`: Create one or more `TimeSample` aggregators from a date vector and time step specification
+- `do_time_sampling`: Apply temporal sampling/aggregation to data using a vector of time samplers
+- `time_sampling`: Apply a single time sampler to an array
+- `get_TimeSampler`: Get a time sampler method instance from a string or symbol
 
 # Usage Example
 
@@ -74,10 +74,10 @@ using Dates
 dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 12, 31))
 
 # Create a time sampler for daily aggregation
-daily_sampler = createTimeSampler(dates, TimeDay())
+daily_sampler = create_TimeSampler(dates, TimeDay())
 
 # Apply to data (assuming data is a 2D array with time as first dimension)
-# sampled_data = doTimeSampling(data, daily_sampler, TimeNoDiff())
+# sampled_data = do_time_sampling(data, daily_sampler, TimeNoDiff())
 ```
 
 # Notes
@@ -90,8 +90,8 @@ daily_sampler = createTimeSampler(dates, TimeDay())
 # See Also
 
 - `TimeSample` for the core type
-- `createTimeSampler` for creating samplers
-- `doTimeSampling` for applying samplers to data
+- `create_TimeSampler` for creating samplers
+- `do_time_sampling` for applying samplers to data
 """
 module TimeSamplers
 using Dates
