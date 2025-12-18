@@ -1,5 +1,5 @@
-export doTimeSampling
-export timeSampling
+export do_time_sampling
+export time_sampling
 
 """
     getTimeSampledArray(_dat::AbstractArray{T, 2})
@@ -16,7 +16,7 @@ end
 
 
 """
-    timeSampling(dat::AbstractArray, time_sampler::TimeSample, dim = 1)
+    time_sampling(dat::AbstractArray, time_sampler::TimeSample, dim = 1)
 
 a temporal sampling/aggregation function to aggregate the data using a given aggregator when the input data is an array
 
@@ -28,24 +28,24 @@ a temporal sampling/aggregation function to aggregate the data using a given agg
 - `time_sampler`: a time aggregator struct with indices and function to do sampling/aggregation
 - `dim`: the dimension along which the sampling/aggregation should be done
 """
-function timeSampling end
+function time_sampling end
 
-function timeSampling(dat::AbstractArray, time_sampler::TimeSample, dim=1)
+function time_sampling(dat::AbstractArray, time_sampler::TimeSample, dim=1)
     dat = view(dat, time_sampler, dim=dim)
     return getTimeSampledArray(dat)
 end
 
-function timeSampling(dat::SubArray, time_sampler::TimeSample, dim=1)
+function time_sampling(dat::SubArray, time_sampler::TimeSample, dim=1)
     dat = view(dat, time_sampler, dim=dim)
     return getTimeSampledArray(dat)
 end
 
-function timeSampling(dat, time_sampler::Nothing, dim=1)
+function time_sampling(dat, time_sampler::Nothing, dim=1)
     return dat
 end
 
 """
-    doTimeSampling(dat, time_samplers, sampling/aggregation_type)
+    do_time_sampling(dat, time_samplers, sampling/aggregation_type)
 
 a temporal sampling/aggregation function to aggregate the data using a vector of aggregators
 
@@ -57,18 +57,18 @@ a temporal sampling/aggregation function to aggregate the data using a vector of
     - `::TimeDiff`: a type defining that the aggregator requires removing/reducing values from original time series. First aggregator aggregates the main time series, second aggregator aggregates to the time series to be removed.
     - `::TimeIndexed`: a type defining that the aggregator requires indexing the original time series
 """
-function doTimeSampling end
+function do_time_sampling end
 
-function doTimeSampling(dat, time_samplers, ::TimeIndexed)
+function do_time_sampling(dat, time_samplers, ::TimeIndexed)
     return dat[first(time_samplers).indices...]
 end
 
-function doTimeSampling(dat, time_samplers, ::TimeNoDiff)
-    return timeSampling(dat, first(time_samplers))
+function do_time_sampling(dat, time_samplers, ::TimeNoDiff)
+    return time_sampling(dat, first(time_samplers))
 end
 
-function doTimeSampling(dat, time_samplers, ::TimeDiff)
-    dat_samp = timeSampling(dat, first(time_samplers))
-    dat_samp_to_remove = timeSampling(dat, last(time_samplers))
+function do_time_sampling(dat, time_samplers, ::TimeDiff)
+    dat_samp = time_sampling(dat, first(time_samplers))
+    dat_samp_to_remove = time_sampling(dat, last(time_samplers))
     return dat_samp .- dat_samp_to_remove
 end

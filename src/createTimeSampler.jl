@@ -1,9 +1,9 @@
-export createTimeSampler
-export getTimeSamplerInstance
+export create_TimeSampler
+export get_TimeSampler
 
 
 """
-    createTimeSampler(date_vector, t_step, sampler_func = mean, skip_sampling = false)
+    create_TimeSampler(date_vector, t_step, sampler_func = mean, skip_sampling = false)
 
 Create one or more temporal sampling/aggregation objects (`TimeSample`) for a given target time step.
 
@@ -19,20 +19,20 @@ Create one or more temporal sampling/aggregation objects (`TimeSample`) for a gi
 - `Vector{Union{Nothing, TimeSample}}`: Time-sampling/aggregation objects, with `nothing` entries when `skip_sampling=true`.
 
 """
-function createTimeSampler end
+function create_TimeSampler end
 
 
-function createTimeSampler(date_vector, t_step::Union{String, Symbol}, sampler_func=mean, skip_sampling=false)
-    return createTimeSampler(date_vector, getTimeSamplerInstance(t_step), sampler_func, skip_sampling)
+function create_TimeSampler(date_vector, t_step::Union{String, Symbol}, sampler_func=mean, skip_sampling=false)
+    return create_TimeSampler(date_vector, get_TimeSampler(t_step), sampler_func, skip_sampling)
 end
 
-function createTimeSampler(date_vector, ::TimeMean, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeMean, sampler_func=mean, skip_sampling=false)
     stepvectime = getTimeArray([1:length(date_vector)], getTypeOfTimeIndexArray())
     mean_agg = TimeSample(stepvectime, sampler_func)
     return [mean_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeDay, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeDay, sampler_func=mean, skip_sampling=false)
     stepvectime = getIndicesForTimeGroups(day.(date_vector))
     day_agg = TimeSample(stepvectime, sampler_func)
     if skip_sampling
@@ -41,15 +41,15 @@ function createTimeSampler(date_vector, ::TimeDay, sampler_func=mean, skip_sampl
     return [day_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeDayAnomaly, sampler_func=mean, skip_sampling=false)
-    day_agg = createTimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeDayAnomaly, sampler_func=mean, skip_sampling=false)
+    day_agg = create_TimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [day_agg[1], mean_agg[1]]
 end
 
-function createTimeSampler(date_vector, ::TimeDayIAV, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeDayIAV, sampler_func=mean, skip_sampling=false)
     days = dayofyear.(date_vector)
-    day_aggr = createTimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
+    day_aggr = create_TimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
     daysMsc = unique(days)
     daysMsc_inds = [findall(==(dd), days) for dd in daysMsc]
     daysIav_inds = [getTimeArray(daysMsc_inds[d], getTypeOfTimeIndexArray()) for d in days]
@@ -57,7 +57,7 @@ function createTimeSampler(date_vector, ::TimeDayIAV, sampler_func=mean, skip_sa
     return [day_aggr[1], dayIav_agg]
 end
 
-function createTimeSampler(date_vector, ::TimeDayMSC, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeDayMSC, sampler_func=mean, skip_sampling=false)
     days = dayofyear.(date_vector)
     daysMsc = unique(days)
     days_ind = [getTimeArray(findall(==(dd), days), getTypeOfTimeIndexArray()) for dd in daysMsc]
@@ -65,14 +65,14 @@ function createTimeSampler(date_vector, ::TimeDayMSC, sampler_func=mean, skip_sa
     return [dat_msc_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeDayMSCAnomaly, sampler_func=mean, skip_sampling=false)
-    dat_msc_agg = createTimeSampler(date_vector, TimeDayMSC(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeDayMSCAnomaly, sampler_func=mean, skip_sampling=false)
+    dat_msc_agg = create_TimeSampler(date_vector, TimeDayMSC(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [dat_msc_agg[1], mean_agg[1]]
 end
 
 
-function createTimeSampler(date_vector, ::TimeHour, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeHour, sampler_func=mean, skip_sampling=false)
     stepvectime = getIndicesForTimeGroups(hour.(date_vector))
     hour_agg = TimeSample(stepvectime, sampler_func)
     if skip_sampling
@@ -81,34 +81,34 @@ function createTimeSampler(date_vector, ::TimeHour, sampler_func=mean, skip_samp
     return [hour_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeHourAnomaly, sampler_func=mean, skip_sampling=false)
-    hour_agg = createTimeSampler(date_vector, TimeHour(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeHourAnomaly, sampler_func=mean, skip_sampling=false)
+    hour_agg = create_TimeSampler(date_vector, TimeHour(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [hour_agg[1], mean_agg[1]]
 end
 
-function createTimeSampler(date_vector, ::TimeHourDayMean, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeHourDayMean, sampler_func=mean, skip_sampling=false)
     hours = hour.(date_vector)
     hours_day = unique(hours)
     t_hour_msc_agg = TimeSample([getTimeArray(findall(==(hh), hours), getTypeOfTimeIndexArray()) for hh in hours_day], sampler_func)
     return [t_hour_msc_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeMonth, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeMonth, sampler_func=mean, skip_sampling=false)
     stepvectime = getIndicesForTimeGroups(month.(date_vector))
     month_agg = TimeSample(stepvectime, sampler_func)
     return [month_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeMonthAnomaly, sampler_func=mean, skip_sampling=false)
-    month_agg = createTimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeMonthAnomaly, sampler_func=mean, skip_sampling=false)
+    month_agg = create_TimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [month_agg[1], mean_agg[1]]
 end
 
-function createTimeSampler(date_vector, ::TimeMonthIAV, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeMonthIAV, sampler_func=mean, skip_sampling=false)
     months = month.(date_vector) # month for each time step, size = number of time steps
-    month_aggr = createTimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling) #to get the month per month, size = number of months
+    month_aggr = create_TimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling) #to get the month per month, size = number of months
     months_series = Int.(view(months, month_aggr[1])) # aggregate the months per time step
     monthsMsc = unique(months) # get unique months
     monthsMsc_inds = [findall(==(mm), months) for mm in monthsMsc] # all timesteps per unique month
@@ -117,38 +117,38 @@ function createTimeSampler(date_vector, ::TimeMonthIAV, sampler_func=mean, skip_
     return [month_aggr[1], monthIav_agg]
 end
 
-function createTimeSampler(date_vector, ::TimeMonthMSC, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeMonthMSC, sampler_func=mean, skip_sampling=false)
     months = month.(date_vector)
     monthsMsc = unique(months)
     t_month_msc_agg = TimeSample([getTimeArray(findall(==(mm), months), getTypeOfTimeIndexArray()) for mm in monthsMsc], sampler_func)
     return [t_month_msc_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeMonthMSCAnomaly, sampler_func=mean, skip_sampling=false)
-    t_month_msc_agg = createTimeSampler(date_vector, TimeMonthMSC(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeMonthMSCAnomaly, sampler_func=mean, skip_sampling=false)
+    t_month_msc_agg = create_TimeSampler(date_vector, TimeMonthMSC(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [t_month_msc_agg[1], mean_agg[1]]
 end
 
-function createTimeSampler(date_vector, ::TimeYear, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeYear, sampler_func=mean, skip_sampling=false)
     stepvectime = getTimeArray(getIndicesForTimeGroups(year.(date_vector)), getTypeOfTimeIndexArray())
     year_agg = TimeSample(stepvectime, sampler_func)
     return [year_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeYearAnomaly, sampler_func=mean, skip_sampling=false)
-    year_agg = createTimeSampler(date_vector, TimeYear(), sampler_func, skip_sampling)
-    mean_agg = createTimeSampler(date_vector, TimeMean(), sampler_func)
+function create_TimeSampler(date_vector, ::TimeYearAnomaly, sampler_func=mean, skip_sampling=false)
+    year_agg = create_TimeSampler(date_vector, TimeYear(), sampler_func, skip_sampling)
+    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
     return [year_agg[1], mean_agg[1]]
 end
 
-function createTimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip_sampling=false)
     stepvectime = getTimeArray([1:length(date_vector)], getTypeOfTimeIndexArray())
     all_agg = TimeSample(stepvectime, sampler_func)
     return [all_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, skip_sampling=false)
     years = year.(date_vector)
     first_year = minimum(years)
     year_inds = getIndexForSelectedYear(years, first_year)
@@ -156,7 +156,7 @@ function createTimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, skip
     return [year_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, skip_sampling=false)
     years = year.(date_vector)
     random_year = rand(unique(years))
     year_inds = getIndexForSelectedYear(years, random_year)
@@ -164,7 +164,7 @@ function createTimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, ski
     return [year_agg,]
 end
 
-function createTimeSampler(date_vector, ::TimeShuffleYears, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, ::TimeShuffleYears, sampler_func=mean, skip_sampling=false)
     years = year.(date_vector)
     unique_years = unique(years)
     shuffled_unique_years = sample(unique_years, length(unique_years), replace=false)
@@ -175,7 +175,7 @@ end
 
 
 """
-    getTimeSamplerInstance(aggr)
+    get_TimeSampler(aggr)
 
 Creates and returns a time aggregator instance based on the provided sampling/aggregation.
 
@@ -189,13 +189,13 @@ An instance of the corresponding `TimeSampleMethod` subtype.
 # Notes
 - A similar approach (`getTypeInstanceForNamedOptions`) is used in `Setup` for creating other named options.
 """
-function getTimeSamplerInstance end
+function get_TimeSampler end
 
-function getTimeSamplerInstance(aggr::Symbol)
-    return getTimeSamplerInstance(string(aggr))
+function get_TimeSampler(aggr::Symbol)
+    return get_TimeSampler(string(aggr))
 end
 
-function getTimeSamplerInstance(aggr::String)
+function get_TimeSampler(aggr::String)
     # uc_first = String(aggr)
     # uc_first = toUpperCaseFirst(aggr, "Time")
     return getfield(TimeSamplers, Symbol(aggr))()
