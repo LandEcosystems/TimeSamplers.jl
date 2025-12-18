@@ -28,7 +28,7 @@ using InteractiveUtils: subtypes
 types_path = joinpath(@__DIR__, "src/types.md")
 open(types_path, "w") do io
     write(io, "# TimeSamplers Types\n\n")
-    write(io, "This page documents all types defined in TimeSamplers.jl, generated using `get_type_docstring` from OmniTools.jl.\n\n")
+    write(io, "This page documents all types defined in TimeSamplers.jl, generated using [`get_type_docstring`](https://landecosystems.github.io/OmniTools.jl/api/ForDocStrings/#get_type_docstring) from OmniTools.jl.\n\n")
     write(io, "```@meta\n")
     write(io, "CurrentModule = TimeSamplers\n")
     write(io, "DocTestSetup = quote\n")
