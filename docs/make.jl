@@ -23,8 +23,9 @@ using TimeSamplers
 using OmniTools: get_type_docstring, show_methods_of, purpose
 using InteractiveUtils: subtypes
 
-# Generate types.md before building docs by including the generation script
+# Generate types.md and api.md before building docs by including the generation scripts
 include(joinpath(@__DIR__, "gen_types_md.jl"))
+include(joinpath(@__DIR__, "gen_api_md.jl"))
 
 makedocs(;
     sitename = "TimeSamplers.jl",
