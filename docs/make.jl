@@ -1,11 +1,19 @@
 using Pkg
+using Base: DEPOT_PATH
 # Ensure OmniTools is available (for CI/CD where it's not registered)
 # Add it before any other operations to avoid dependency resolution issues
 try
     using OmniTools
 catch
     @info "OmniTools not available, adding from git..."
-    Pkg.develop(PackageSpec(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main"))
+    Pkg.develop(PackageSpec(url = "https://github.com/LandEcosystems/OmniTools.jl.git"))
+    # Checkout the main branch after developing
+    omni_tools_path = joinpath(DEPOT_PATH[1], "dev", "OmniTools")
+    if isdir(omni_tools_path)
+        cd(omni_tools_path) do
+            run(`git checkout main`)
+        end
+    end
     using OmniTools
 end
 
