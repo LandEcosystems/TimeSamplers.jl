@@ -1,7 +1,14 @@
 using Pkg
 cd(@__DIR__)
 Pkg.activate(".")
-Pkg.develop(path="../../OmniTools.jl")
+# Ensure OmniTools is available (for CI/CD where it's not registered)
+try
+    using OmniTools
+catch
+    @info "OmniTools not available, adding from git..."
+    Pkg.develop(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main")
+    using OmniTools
+end
 Pkg.resolve()
 Pkg.instantiate()
 
