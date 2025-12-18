@@ -1,7 +1,6 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 TimeSamplers = "a27efc82-29b7-4223-84cd-12fc64c7a5bb"
-OmniTools = "202e6067-a2be-48c9-bc21-3d3d20912f89"
 
 [compat]
 Documenter = "1"
