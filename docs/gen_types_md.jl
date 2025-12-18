@@ -70,6 +70,59 @@ open(types_path, "w") do io
     time_sampler_types = subtypes(TimeSamplerMethod)
     sort!(time_sampler_types, by=nameof)
     
+    # Helper function to format type docstring without redundant headings
+    function format_type_docstring(typ, purpose_function)
+        docstr = get_type_docstring(typ, purpose_function=purpose_function)
+        type_name = string(nameof(typ))
+        
+        # Remove the # TypeName heading and ## Type Hierarchy heading
+        lines = split(docstr, '\n')
+        result_lines = String[]
+        skip_next_empty = false
+        in_type_hierarchy = false
+        
+        for line in lines
+            # Skip the # TypeName heading
+            if startswith(line, "# $(type_name)")
+                skip_next_empty = true
+                continue
+            end
+            
+            # Skip empty lines after removed heading
+            if skip_next_empty && isempty(strip(line))
+                skip_next_empty = false
+                continue
+            end
+            skip_next_empty = false
+            
+            # Skip the ## Type Hierarchy heading
+            if startswith(line, "## Type Hierarchy")
+                in_type_hierarchy = true
+                continue
+            end
+            
+            # Process the type hierarchy line (the ```TypeName <: ...``` line)
+            if in_type_hierarchy
+                if startswith(line, "```")
+                    # Remove code block markers and keep just the content
+                    hierarchy_line = replace(line, r"```+" => "")
+                    hierarchy_line = strip(hierarchy_line)
+                    if !isempty(hierarchy_line)
+                        push!(result_lines, hierarchy_line)
+                    end
+                    in_type_hierarchy = false
+                    continue
+                elseif isempty(strip(line))
+                    continue
+                end
+            end
+            
+            push!(result_lines, line)
+        end
+        
+        return join(result_lines, '\n')
+    end
+    
     # Group by category
     basic_agg = filter(t -> nameof(t) in [:TimeHour, :TimeDay, :TimeMonth, :TimeYear, :TimeMean], time_sampler_types)
     anomalies = filter(t -> occursin("Anomaly", string(nameof(t))), time_sampler_types)
@@ -80,60 +133,80 @@ open(types_path, "w") do io
     # Basic Aggregation
     if !isempty(basic_agg)
         write(io, "## Basic Aggregation\n\n")
-        for typ in basic_agg
-            write(io, "```@docs\n")
-            write(io, "$(nameof(typ))\n")
-            write(io, "```\n\n")
-            write(io, get_type_docstring(typ, purpose_function=time_sampler_purpose))
+        for (idx, typ) in enumerate(basic_agg)
+            type_name = string(nameof(typ))
+            write(io, "$(type_name)\n\n")
+            formatted = format_type_docstring(typ, time_sampler_purpose)
+            write(io, formatted)
             write(io, "\n\n")
+            # Add separator between types, but not after the last one
+            if idx < length(basic_agg)
+                write(io, "---\n\n")
+            end
         end
     end
     
     # Anomalies
     if !isempty(anomalies)
         write(io, "## Anomalies\n\n")
-        for typ in anomalies
-            write(io, "```@docs\n")
-            write(io, "$(nameof(typ))\n")
-            write(io, "```\n\n")
-            write(io, get_type_docstring(typ, purpose_function=time_sampler_purpose))
+        for (idx, typ) in enumerate(anomalies)
+            type_name = string(nameof(typ))
+            write(io, "$(type_name)\n\n")
+            formatted = format_type_docstring(typ, time_sampler_purpose)
+            write(io, formatted)
             write(io, "\n\n")
+            # Add separator between types, but not after the last one
+            if idx < length(anomalies)
+                write(io, "---\n\n")
+            end
         end
     end
     
     # Climatological Statistics
     if !isempty(climatological)
         write(io, "## Climatological Statistics\n\n")
-        for typ in climatological
-            write(io, "```@docs\n")
-            write(io, "$(nameof(typ))\n")
-            write(io, "```\n\n")
-            write(io, get_type_docstring(typ, purpose_function=time_sampler_purpose))
+        for (idx, typ) in enumerate(climatological)
+            type_name = string(nameof(typ))
+            write(io, "$(type_name)\n\n")
+            formatted = format_type_docstring(typ, time_sampler_purpose)
+            write(io, formatted)
             write(io, "\n\n")
+            # Add separator between types, but not after the last one
+            if idx < length(climatological)
+                write(io, "---\n\n")
+            end
         end
     end
     
     # Time Selection
     if !isempty(time_selection)
         write(io, "## Time Selection\n\n")
-        for typ in time_selection
-            write(io, "```@docs\n")
-            write(io, "$(nameof(typ))\n")
-            write(io, "```\n\n")
-            write(io, get_type_docstring(typ, purpose_function=time_sampler_purpose))
+        for (idx, typ) in enumerate(time_selection)
+            type_name = string(nameof(typ))
+            write(io, "$(type_name)\n\n")
+            formatted = format_type_docstring(typ, time_sampler_purpose)
+            write(io, formatted)
             write(io, "\n\n")
+            # Add separator between types, but not after the last one
+            if idx < length(time_selection)
+                write(io, "---\n\n")
+            end
         end
     end
     
     # Special Methods
     if !isempty(special)
         write(io, "## Special Methods\n\n")
-        for typ in special
-            write(io, "```@docs\n")
-            write(io, "$(nameof(typ))\n")
-            write(io, "```\n\n")
-            write(io, get_type_docstring(typ, purpose_function=time_sampler_purpose))
+        for (idx, typ) in enumerate(special)
+            type_name = string(nameof(typ))
+            write(io, "$(type_name)\n\n")
+            formatted = format_type_docstring(typ, time_sampler_purpose)
+            write(io, formatted)
             write(io, "\n\n")
+            # Add separator between types, but not after the last one
+            if idx < length(special)
+                write(io, "---\n\n")
+            end
         end
     end
     
