@@ -198,7 +198,7 @@ end
 function getTimeSamplerInstance(aggr::String)
     # uc_first = String(aggr)
     # uc_first = toUpperCaseFirst(aggr, "Time")
-    return getfield(TimeSampler, Symbol(aggr))()
+    return getfield(TimeSamplers, Symbol(aggr))()
 end
 
 
