@@ -18,6 +18,36 @@ Create one or more temporal sampling/aggregation objects (`TimeSample`) for a gi
 # Returns
 - `Vector{Union{Nothing, TimeSample}}`: Time-sampling/aggregation objects, with `nothing` entries when `skip_sampling=true`.
 
+# Examples
+```jldoctest
+julia> using TimeSamplers, Dates
+
+julia> dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 10))
+10-element Vector{Date}:
+ 2000-01-01
+ 2000-01-02
+ 2000-01-03
+ 2000-01-04
+ 2000-01-05
+ 2000-01-06
+ 2000-01-07
+ 2000-01-08
+ 2000-01-09
+ 2000-01-10
+
+julia> daily_sampler = create_TimeSampler(dates, TimeDay())
+1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
+
+julia> monthly_sampler = create_TimeSampler(dates, "TimeMonth")
+1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+
+julia> anomaly_sampler = create_TimeSampler(dates, TimeDayAnomaly())
+2-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+```
 """
 function create_TimeSampler end
 
@@ -185,6 +215,20 @@ Creates and returns a time aggregator instance based on the provided sampling/ag
 
 # Returns
 An instance of the corresponding `TimeSampleMethod` subtype.
+
+# Examples
+```jldoctest
+julia> using TimeSamplers
+
+julia> get_TimeSampler("TimeDay")
+TimeDay()
+
+julia> get_TimeSampler(:TimeMonth)
+TimeMonth()
+
+julia> get_TimeSampler("TimeYear")
+TimeYear()
+```
 
 # Notes
 - A similar approach (`getTypeInstanceForNamedOptions`) is used in `Setup` for creating other named options.
