@@ -5,7 +5,7 @@ try
     using OmniTools
 catch
     @info "OmniTools not available, adding from git..."
-    Pkg.add(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main")
+    Pkg.develop(PackageSpec(url = "https://github.com/LandEcosystems/OmniTools.jl.git", rev = "main"))
     using OmniTools
 end
 
