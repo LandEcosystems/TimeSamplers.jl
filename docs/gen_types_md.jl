@@ -37,34 +37,44 @@ open(types_path, "w") do io
     write(io, "end\n")
     write(io, "```\n\n")
     
-    # TimeSampler abstract type
-    write(io, "## TimeSampler\n\n")
-    write(io, "```@docs\n")
-    write(io, "TimeSampler\n")
-    write(io, "```\n\n")
     # Use purpose from TimeSamplers (which extends OmniTools.purpose)
     time_sampler_purpose = (typ) -> TimeSamplers.purpose(typ)
-    write(io, get_type_docstring(TimeSampler, purpose_function=time_sampler_purpose))
-    write(io, "\n\n")
+    
+    # TimeSampler abstract type
+    write(io, "## TimeSampler\n\n")
+    write(io, "`TimeSampler`\n\n")
+    purpose_text = time_sampler_purpose(TimeSampler)
+    write(io, "$(purpose_text)\n\n")
+    write(io, "```TimeSampler <: Any```\n\n")
     
     # TimeSamplerMethod abstract type
     write(io, "## TimeSamplerMethod\n\n")
-    write(io, "```@docs\n")
-    write(io, "TimeSamplerMethod\n")
-    write(io, "```\n\n")
-    write(io, get_type_docstring(TimeSamplerMethod, purpose_function=time_sampler_purpose))
-    write(io, "\n\n")
+    write(io, "`TimeSamplerMethod`\n\n")
+    purpose_text = time_sampler_purpose(TimeSamplerMethod)
+    write(io, "$(purpose_text)\n\n")
+    write(io, "```TimeSamplerMethod <: Any```\n\n")
     
     # Core types
     write(io, "## Core Types\n\n")
-    write(io, "```@docs\n")
-    write(io, "TimeSample\n")
-    write(io, "TimeSampleViewInstance\n")
-    write(io, "```\n\n")
-    write(io, get_type_docstring(TimeSample, purpose_function=time_sampler_purpose))
-    write(io, "\n\n")
-    write(io, get_type_docstring(TimeSampleViewInstance, purpose_function=time_sampler_purpose))
-    write(io, "\n\n")
+    # TimeSample
+    write(io, "`TimeSample`\n\n")
+    purpose_text = time_sampler_purpose(TimeSample)
+    write(io, "$(purpose_text)\n\n")
+    # Get hierarchy from get_type_docstring and extract it
+    sample_docstr = get_type_docstring(TimeSample, purpose_function=time_sampler_purpose)
+    hierarchy_match = match(r"```([^`]+)```", sample_docstr)
+    if hierarchy_match !== nothing
+        write(io, "```$(hierarchy_match.captures[1])```\n\n")
+    end
+    # TimeSampleViewInstance
+    write(io, "`TimeSampleViewInstance`\n\n")
+    purpose_text = time_sampler_purpose(TimeSampleViewInstance)
+    write(io, "$(purpose_text)\n\n")
+    instance_docstr = get_type_docstring(TimeSampleViewInstance, purpose_function=time_sampler_purpose)
+    hierarchy_match = match(r"```([^`]+)```", instance_docstr)
+    if hierarchy_match !== nothing
+        write(io, "```$(hierarchy_match.captures[1])```\n\n")
+    end
     
     # Get all TimeSamplerMethod subtypes
     time_sampler_types = subtypes(TimeSamplerMethod)
