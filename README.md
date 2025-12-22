@@ -14,7 +14,7 @@
 [codecov-img]: https://codecov.io/gh/LandEcosystems/TimeSamplers.jl/branch/main/graph/badge.svg
 [codecov-url]: https://codecov.io/gh/LandEcosystems/TimeSamplers.jl
 
-[julia-img]: https://img.shields.io/badge/julia-v1.6+-blue.svg
+[julia-img]: https://img.shields.io/badge/julia-v1.10+-blue.svg
 [julia-url]: https://julialang.org/
 
 A Julia package for temporal sampling, aggregation, and resampling of time series data.
