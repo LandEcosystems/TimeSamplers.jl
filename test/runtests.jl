@@ -44,6 +44,7 @@ end
         # NoDiff: daily sampler is effectively identity for daily input
         daily = create_TimeSampler(dates, TimeDay())
         @test time_sampling(data, daily[1]) == data
+        @test do_time_sampling(data, daily) == data
         @test do_time_sampling(data, daily, TimeNoDiff()) == data
 
         # Monthly aggregation: mean over all samples
