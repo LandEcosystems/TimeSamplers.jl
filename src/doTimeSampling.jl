@@ -85,16 +85,19 @@ end
 
 """
     do_time_sampling(dat, time_samplers, sampling/aggregation_type)
+    do_time_sampling(dat, time_samplers)
 
 a temporal sampling/aggregation function to aggregate the data using a vector of aggregators
 
 # Arguments:
 - `dat`: a data array/vector to aggregate
 - `time_samplers`: a vector of time aggregator structs with indices and function to do sampling/aggregation
-- sampling/aggregation_type: a type defining the type of sampling/aggregation to be done as follows:
+- `sampling/aggregation_type`: a type defining the type of sampling/aggregation to be done as follows:
     - `::TimeNoDiff`: a type defining that the aggregator does not require removing/reducing values from original time series
     - `::TimeDiff`: a type defining that the aggregator requires removing/reducing values from original time series. First aggregator aggregates the main time series, second aggregator aggregates to the time series to be removed.
     - `::TimeIndexed`: a type defining that the aggregator requires indexing the original time series
+
+If `sampling/aggregation_type` is omitted, it defaults to `TimeNoDiff()`.
 
 # Examples
 ```jldoctest
@@ -120,7 +123,7 @@ julia> samplers = create_TimeSampler(dates, TimeDay())
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
  TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean)
 
-julia> do_time_sampling(data, samplers, TimeNoDiff())
+julia> do_time_sampling(data, samplers)
 5-element Vector{Float64}:
  1.0
  2.0
@@ -144,6 +147,10 @@ julia> do_time_sampling(data, anomaly_samplers, TimeDiff())
 """
 function do_time_sampling end
 
+function do_time_sampling(dat, time_samplers)
+    return do_time_sampling(dat, time_samplers, TimeNoDiff())
+end
+
 function do_time_sampling(dat, time_samplers, ::TimeIndexed)
     return dat[first(time_samplers).indices...]
 end
@@ -151,6 +158,7 @@ end
 function do_time_sampling(dat, time_samplers, ::TimeNoDiff)
     return time_sampling(dat, first(time_samplers))
 end
+
 
 function do_time_sampling(dat, time_samplers, ::TimeDiff)
     dat_samp = time_sampling(dat, first(time_samplers))
