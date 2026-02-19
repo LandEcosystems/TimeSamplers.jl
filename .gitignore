@@ -47,14 +47,7 @@ output_*
 /*/*/*/Manifest.toml
 
 /Manifest.toml
-examples/Manifest.toml
-examples/*/Manifest.toml
-docs/Manifest.toml
-lib/*/Manifest.toml
-lib/Manifest.toml
 README.md
-GettingStarted.md
-examples/data/
 docs/build/
 build/
 __pycache__
@@ -64,12 +57,4 @@ __pycache__
 .DS_Store
 node_modules
 package-lock.json
-!docs/src/assets/logo.png
-!docs/src/assets/logo-RnD.png
-!docs/src/assets/sindbad_logo.png
-!docs/src/assets/sindbad_info.png
-!docs/src/assets/sindbad_package_dependency.png
-!.vitepress
-!logo_mpi_grey.png
-!.github
 .qodo
