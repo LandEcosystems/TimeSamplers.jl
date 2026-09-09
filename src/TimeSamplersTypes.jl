@@ -9,6 +9,7 @@ export TimeAllYears
 export TimeArray
 export TimeHour
 export TimeHourAnomaly
+export TimeHourClimatologyMean
 export TimeHourDayMean
 export TimeDay
 export TimeDayAnomaly
@@ -82,6 +83,13 @@ purpose(::Type{TimeHour}) = "aggregation to hourly time steps"
 
 struct TimeHourAnomaly <: TimeSamplerMethod end
 purpose(::Type{TimeHourAnomaly}) = "aggregation to hourly anomalies"
+
+export TimeSixHourClimatologyMean
+struct TimeSixHourClimatologyMean <: TimeSamplerMethod end
+purpose(::Type{TimeSixHourClimatologyMean}) = "aggregation to a six-hour climatological mean excluding February 29"
+
+struct TimeHourClimatologyMean <: TimeSamplerMethod end
+purpose(::Type{TimeHourClimatologyMean}) = "aggregation to an hourly climatological mean over multiple years"
 
 struct TimeHourDayMean <: TimeSamplerMethod end
 purpose(::Type{TimeHourDayMean}) = "aggregation to mean of hourly data over days"
