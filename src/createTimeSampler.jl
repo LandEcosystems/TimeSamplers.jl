@@ -124,6 +124,80 @@ function create_TimeSampler(date_vector, ::TimeHourDayMean, sampler_func=mean, s
     return [t_hour_msc_agg,]
 end
 
+
+"""
+    create_TimeSampler(date_vector, ::TimeHourClimatologyMean, sampler_func=mean, skip_sampling=false)
+
+Create an hourly climatological forcing cycle by grouping timestamps by
+normalized hour of year. This preserves the legacy SINDBAD behavior: dates
+after February 29 are shifted back by one day, while February 29 itself is
+grouped together with March 1 of the same hour.
+
+`skip_sampling` is intentionally ignored because constructing a climatology is
+an aggregation even when the source data already have hourly resolution.
+"""
+function create_TimeSampler(date_vector, ::TimeHourClimatologyMean, sampler_func=mean, skip_sampling=false)
+    years = year.(date_vector)
+    days_of_year = dayofyear.(date_vector)
+    hours = hour.(date_vector)
+
+    is_leap_year = Dates.isleapyear.(years)
+    is_after_february_29 = is_leap_year .& (days_of_year .> 60)
+
+    # Normalize leap years to a 365-day calendar.
+    normalized_days = copy(days_of_year)
+    normalized_days[is_after_february_29] .-= 1
+
+    # January 1 00:00 -> 1; December 31 23:00 -> 8760.
+    hour_of_year = (normalized_days .- 1) .* 24 .+ hours .+ 1
+
+    groups = unique(hour_of_year)
+    index_type = getTypeOfTimeIndexArray()
+    indices = [
+        getTimeArray(findall(==(group), hour_of_year), index_type)
+        for group in groups
+    ]
+
+    return [TimeSample(indices, sampler_func),]
+end
+
+# Group four six-hour slots per day across years; exclude leap day.
+# Climatological grouping is required even when skip_sampling is true.
+function create_TimeSampler(date_vector, ::TimeSixHourClimatologyMean, sampler_func=mean, skip_sampling=false)
+    # Build 6-hour slot-of-year groups: 1..1460 (365 * 4), ignoring leap day.
+    yrs = year.(date_vector)
+    doy = dayofyear.(date_vector)
+    hrs = hour.(date_vector)
+
+    is_leap = Dates.isleapyear.(yrs)
+    is_feb29 = is_leap .& (doy .== 60)
+    after_f29 = is_leap .& (doy .> 60)
+
+    doy_norm = copy(doy)
+    doy_norm[after_f29] .-= 1
+
+    # 6-hour slot within day:
+    # 00:00 -> 1, 06:00 -> 2, 12:00 -> 3, 18:00 -> 4
+    sixhour_slot = div.(hrs, 6) .+ 1
+
+    # Slot-of-year: 1..1460
+    sixhour_of_year = (doy_norm .- 1) .* 4 .+ sixhour_slot
+
+    mask = .!is_feb29
+    groups = unique(sixhour_of_year[mask])
+
+    sixhour_clim_agg = TimeSample(
+        [
+            getTimeArray(findall(i -> mask[i] && sixhour_of_year[i] == g, eachindex(date_vector)),
+                         getTypeOfTimeIndexArray())
+            for g in groups
+        ],
+        sampler_func
+    )
+
+    return [sixhour_clim_agg,]
+end
+
 function create_TimeSampler(date_vector, ::TimeMonth, sampler_func=mean, skip_sampling=false)
     stepvectime = getIndicesForTimeGroups(month.(date_vector))
     month_agg = TimeSample(stepvectime, sampler_func)
