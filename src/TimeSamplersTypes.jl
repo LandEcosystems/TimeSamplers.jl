@@ -10,6 +10,7 @@ export TimeArray
 export TimeHour
 export TimeHourAnomaly
 export TimeHourClimatologyMean
+export TimeSixHourClimatologyMean
 export TimeHourDayMean
 export TimeDay
 export TimeDayAnomaly
