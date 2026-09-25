@@ -44,6 +44,21 @@ The package supports various time sampling methods:
 - `TimeMonthIAV`: Inter-annual variability for monthly data
 - `TimeHourDayMean`: Mean of hourly data over days
 
+## Resampling to n-unit periods
+- `TimePeriodSample`: Aggregate to bins of any n-unit period such as `Hour(6)` or
+  `"8-day"`
+- `TimePeriodAnomaly`: Bin values minus the overall mean
+- `TimePeriodMSC`: Mean seasonal cycle of n-unit bins, or the mean diurnal cycle with
+  `cycle = Day(1)`
+- `TimePeriodMSCAnomaly`: Mean cycle minus the overall mean
+- `TimePeriodIAV`: Bin values minus the mean cycle value at their position
+
+Periods can be given as strings such as `"30-sec"`, `"15-min"`, `"6-hour"`,
+`"8-day"`, `"3-month"` or `"year"`. A kind and a cycle can follow, as in
+`"8-day_msc"`, `"month_iav"` or `"3-hour_msc_day"`. The calendar methods `TimeHour`,
+`TimeDay`, `TimeMonth` and `TimeYear` and their anomaly, MSC and IAV variants are
+built on these period methods.
+
 ## Time Selection
 - `TimeAllYears`: Include all years
 - `TimeFirstYear`: Select first year only
@@ -63,6 +78,10 @@ The package supports various time sampling methods:
 - `do_time_sampling`: Apply temporal sampling/aggregation to data using a vector of time samplers
 - `time_sampling`: Apply a single time sampler to an array
 - `get_TimeSampler`: Get a time sampler method instance from a string or symbol
+- `time_resample`: Resample data to an n-unit period in one call
+- `time_resample_dates`: Labels for the output of `time_resample`
+- `parse_temporal_resolution`: Parse `"6-hour"` into `(6, "hour")`
+- `get_time_period`: Convert `"6-hour"` into `Hour(6)`
 
 # Usage Example
 
@@ -78,6 +97,20 @@ daily_sampler = create_TimeSampler(dates, TimeDay())
 
 # Apply to data (assuming data is a 2D array with time as first dimension)
 # sampled_data = do_time_sampling(data, daily_sampler, TimeNoDiff())
+```
+
+# Resampling example
+
+```julia
+hourly = collect(DateTime(2000, 1, 1):Hour(1):DateTime(2001, 12, 31, 23))
+data = rand(length(hourly), 3)
+
+six_hourly = time_resample(data, hourly, "6-hour")
+daily_sum = time_resample(data, hourly, :day; sampler_func=sum)
+seasonal_cycle = time_resample(data, hourly, "3-hour_msc")
+diurnal_cycle = time_resample(data, hourly, "3-hour_msc_day")
+iav = time_resample(data, hourly, "8-day_iav")
+labels = time_resample_dates(hourly, "6-hour")
 ```
 
 # Notes
@@ -100,5 +133,6 @@ using StatsBase
 include("TimeSamplersTypes.jl")
 include("utilsTimeSamplers.jl")
 include("createTimeSampler.jl")
+include("resampleTimeSampler.jl")
 include("doTimeSampling.jl")
 end # module TimeSamplers

@@ -32,9 +32,15 @@ export TimeYear
 export TimeYearAnomaly
 export TimeSample
 export TimeSampleViewInstance
+export TimePeriodMethod
+export TimePeriodSample
+export TimePeriodAnomaly
+export TimePeriodMSC
+export TimePeriodMSCAnomaly
+export TimePeriodIAV
 
 
-# ------------------------- time aggregator --------------------------------
+# ------------------------- time aggregator ---------------
 """
     TimeSample{I, sampler_func}
 
@@ -146,3 +152,125 @@ purpose(::Type{TimeYear}) = "aggregation to yearly time steps"
 struct TimeYearAnomaly <: TimeSamplerMethod end
 purpose(::Type{TimeYearAnomaly}) = "aggregation to yearly anomalies"
 
+
+# ------------------------- period based methods ---------------
+abstract type TimePeriodMethod <: TimeSamplerMethod end
+purpose(::Type{TimePeriodMethod}) = "Abstract type for time sampling methods defined by an n-unit period"
+
+"""
+    TimePeriodSample(period; origin = :calendar)
+    TimePeriodSample(n, unit; origin = :calendar)
+
+Resample to bins of an n-unit period such as `Hour(6)`, `"6-hour"` or `Day(8)`.
+
+# Fields:
+- `period::P`: the bin length as a `Dates.Period`
+- `origin::Symbol`: where bins start. `:calendar` floors dates on the calendar,
+  `:start` counts bins from the first date, and `:year` restarts bins at every
+  Jan 1 so that the last bin of each year may be short.
+
+With `:calendar`, bins of hours, minutes and seconds align to midnight, and month
+bins align to Jan 1, so 3-month bins are calendar quarters. Bins of several days or
+weeks align to the `Dates` epoch instead of the data. Use `:start` or `:year` to
+align such bins to the data.
+"""
+struct TimePeriodSample{P<:Dates.Period} <: TimePeriodMethod
+    period::P
+    origin::Symbol
+    function TimePeriodSample(period::P, origin::Symbol) where {P<:Dates.Period}
+        checkTimePeriod(period)
+        checkTimeOrigin(origin)
+        return new{P}(period, origin)
+    end
+end
+purpose(::Type{TimePeriodSample}) = "aggregation to bins of an n-unit period"
+
+"""
+    TimePeriodAnomaly(period; origin = :calendar)
+    TimePeriodAnomaly(n, unit; origin = :calendar)
+
+Anomalies of n-unit bins, computed as each bin value minus the overall mean.
+
+# Fields:
+- `period::P`: the bin length as a `Dates.Period`
+- `origin::Symbol`: where bins start, see `TimePeriodSample`
+"""
+struct TimePeriodAnomaly{P<:Dates.Period} <: TimePeriodMethod
+    period::P
+    origin::Symbol
+    function TimePeriodAnomaly(period::P, origin::Symbol) where {P<:Dates.Period}
+        checkTimePeriod(period)
+        checkTimeOrigin(origin)
+        return new{P}(period, origin)
+    end
+end
+purpose(::Type{TimePeriodAnomaly}) = "aggregation to anomalies of n-unit bins"
+
+"""
+    TimePeriodMSC(period; cycle = Year(1))
+    TimePeriodMSC(n, unit; cycle = Year(1))
+
+Mean cycle of n-unit bins. With the default yearly cycle this is the multi-year
+seasonal cycle, and with `cycle = Day(1)` it is the mean diurnal cycle. The value at
+each cycle position pools all timesteps at that position across all cycles. Bins
+restart at the start of every cycle.
+
+In a yearly cycle of day or sub-day bins, positions follow calendar dates on a 366
+day leap year calendar. Every date is grouped with the same date in all years, and
+Feb 29 only has data from leap years. Daily bins give 366 values when the record has
+a leap year and 365 otherwise.
+
+# Fields:
+- `period::P`: the bin length as a `Dates.Period`
+- `cycle::C`: the length of the cycle as a `Dates.Period`
+"""
+struct TimePeriodMSC{P<:Dates.Period,C<:Dates.Period} <: TimePeriodMethod
+    period::P
+    cycle::C
+    function TimePeriodMSC(period::P, cycle::C) where {P<:Dates.Period,C<:Dates.Period}
+        checkCyclePeriod(period, cycle)
+        return new{P,C}(period, cycle)
+    end
+end
+purpose(::Type{TimePeriodMSC}) = "aggregation to the mean seasonal or diurnal cycle of n-unit bins"
+
+"""
+    TimePeriodMSCAnomaly(period; cycle = Year(1))
+    TimePeriodMSCAnomaly(n, unit; cycle = Year(1))
+
+Mean cycle of n-unit bins minus the overall mean. See `TimePeriodMSC`.
+
+# Fields:
+- `period::P`: the bin length as a `Dates.Period`
+- `cycle::C`: the length of the cycle as a `Dates.Period`
+"""
+struct TimePeriodMSCAnomaly{P<:Dates.Period,C<:Dates.Period} <: TimePeriodMethod
+    period::P
+    cycle::C
+    function TimePeriodMSCAnomaly(period::P, cycle::C) where {P<:Dates.Period,C<:Dates.Period}
+        checkCyclePeriod(period, cycle)
+        return new{P,C}(period, cycle)
+    end
+end
+purpose(::Type{TimePeriodMSCAnomaly}) = "aggregation to anomalies of the mean cycle of n-unit bins"
+
+"""
+    TimePeriodIAV(period; cycle = Year(1))
+    TimePeriodIAV(n, unit; cycle = Year(1))
+
+Inter-cycle variability of n-unit bins, computed as each bin value minus the mean
+cycle value at the position of that bin. See `TimePeriodMSC`.
+
+# Fields:
+- `period::P`: the bin length as a `Dates.Period`
+- `cycle::C`: the length of the cycle as a `Dates.Period`
+"""
+struct TimePeriodIAV{P<:Dates.Period,C<:Dates.Period} <: TimePeriodMethod
+    period::P
+    cycle::C
+    function TimePeriodIAV(period::P, cycle::C) where {P<:Dates.Period,C<:Dates.Period}
+        checkCyclePeriod(period, cycle)
+        return new{P,C}(period, cycle)
+    end
+end
+purpose(::Type{TimePeriodIAV}) = "aggregation to the inter-annual variability of n-unit bins"
