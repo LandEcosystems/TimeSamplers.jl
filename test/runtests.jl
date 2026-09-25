@@ -55,6 +55,261 @@ end
         anomaly = create_TimeSampler(dates, TimeDayAnomaly())
         @test do_time_sampling(data, anomaly, TimeDiff()) == data .- Statistics.mean(data)
     end
+
+    @testset "parse_temporal_resolution" begin
+        @test parse_temporal_resolution("day") == (1, "day")
+        @test parse_temporal_resolution("hour") == (1, "hour")
+        @test parse_temporal_resolution("") == (1, "")
+        @test parse_temporal_resolution("6-hour") == (6, "hour")
+        @test parse_temporal_resolution("1-day") == (1, "day")
+        @test parse_temporal_resolution("2-day") == (2, "day")
+        @test parse_temporal_resolution("3-month") == (3, "month")
+        @test_throws ErrorException parse_temporal_resolution("0-hour")
+        @test_throws ErrorException parse_temporal_resolution("-1-hour")
+        @test_throws ErrorException parse_temporal_resolution("abc-hour")
+        @test_throws ErrorException parse_temporal_resolution("6.5-hour")
+        @test_throws ErrorException parse_temporal_resolution("6-6-hour")
+        # a count written directly before the unit
+        @test parse_temporal_resolution("3hour") == (3, "hour")
+        @test parse_temporal_resolution("3h") == (3, "h")
+        @test parse_temporal_resolution("30 min") == (30, "min")
+        @test parse_temporal_resolution(Symbol("8day")) == (8, "day")
+        @test_throws ErrorException parse_temporal_resolution("0hour")
+    end
+
+    @testset "get_time_period" begin
+        @test get_time_period("6-hour") == Hour(6)
+        @test get_time_period("30-sec") == Second(30)
+        @test get_time_period("15-min") == Minute(15)
+        @test get_time_period(:day) == Day(1)
+        @test get_time_period("2-Weeks") == Week(2)
+        @test get_time_period("3-mon") == Month(3)
+        @test get_time_period("yr") == Year(1)
+        @test get_time_period(Hour(3)) == Hour(3)
+        @test get_time_period(8, "d") == Day(8)
+        @test get_time_period("3hour") == Hour(3)
+        @test get_time_period("3h") == Hour(3)
+        @test get_time_period("30sec") == Second(30)
+        @test get_time_period("8d") == Day(8)
+        @test get_time_period("3 mon") == Month(3)
+        @test_throws ErrorException get_time_period("15m")
+        @test_throws ErrorException get_time_period("6.5h")
+        @test_throws ErrorException get_time_period("6-m")
+        @test_throws ErrorException get_time_period("fortnight")
+        @test_throws ErrorException get_time_period("")
+    end
+
+    @testset "TimePeriodSample bins" begin
+        # hourly data from 03:00 gives a short first 6-hour bin
+        hourly = collect(DateTime(2000, 1, 1, 3):Hour(1):DateTime(2000, 1, 2, 5))
+        inds = create_TimeSampler(hourly, "6-hour")[1].indices
+        @test inds == [1:3, 4:9, 10:15, 16:21, 22:27]
+        @test time_resample_dates(hourly, "6-hour") == DateTime(2000, 1, 1):Hour(6):DateTime(2000, 1, 2)
+
+        # daily data to calendar quarters
+        daily = collect(Date(2000, 1, 1):Day(1):Date(2000, 12, 31))
+        quarters = create_TimeSampler(daily, "3-month")[1].indices
+        @test length.(quarters) == [91, 91, 92, 92]
+        @test time_resample_dates(daily, "3-month") == [Date(2000, 1, 1), Date(2000, 4, 1), Date(2000, 7, 1), Date(2000, 10, 1)]
+
+        minutes = collect(DateTime(2000, 1, 1):Minute(1):DateTime(2000, 1, 1, 0, 59))
+        @test length.(create_TimeSampler(minutes, "15-min")[1].indices) == fill(15, 4)
+        seconds = collect(DateTime(2000, 1, 1):Second(1):DateTime(2000, 1, 1, 0, 1, 59))
+        @test length.(create_TimeSampler(seconds, "30-sec")[1].indices) == fill(30, 4)
+
+        # origin :start counts bins from the first date across the year boundary
+        two_years = collect(Date(2001, 1, 1):Day(1):Date(2002, 12, 31))
+        start_bins = create_TimeSampler(two_years, TimePeriodSample(Day(8); origin=:start))[1].indices
+        @test length(start_bins) == cld(length(two_years), 8)
+        @test all(==(8), length.(start_bins[1:end-1]))
+        @test time_resample_dates(two_years, Day(8); origin=:start)[2] == Date(2001, 1, 9)
+
+        # origin :year restarts at Jan 1 so the last bin of every year is short
+        year_bins = create_TimeSampler(two_years, TimePeriodSample("8-day"; origin=:year))[1].indices
+        @test length(year_bins) == 2 * 46
+        @test length(year_bins[46]) == 5
+        @test first(year_bins[47]) == 366
+        @test_throws ErrorException TimePeriodSample(Day(8); origin=:bogus)
+        @test_throws ErrorException TimePeriodSample(Day(0))
+    end
+
+    @testset "TimePeriodSample values and entry points" begin
+        dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 6))
+        data = collect(1.0:6.0)
+        # calendar bins of several days are aligned to the Dates epoch, not the data
+        @test time_resample_dates(dates, "2-day")[1] == Date(1999, 12, 31)
+        @test do_time_sampling(data, create_TimeSampler(dates, "2-day")) == [1.0, 2.5, 4.5, 6.0]
+
+        by_start = TimePeriodSample(Day(2); origin=:start)
+        samplers = create_TimeSampler(dates, by_start)
+        @test do_time_sampling(data, samplers) == [1.5, 3.5, 5.5]
+        @test do_time_sampling(data, create_TimeSampler(dates, by_start, sum)) == [3.0, 7.0, 11.0]
+        @test create_TimeSampler(dates, by_start, mean, true) == [nothing]
+
+        ref = create_TimeSampler(dates, TimePeriodSample(Day(2)))[1].indices
+        @test create_TimeSampler(dates, Day(2))[1].indices == ref
+        @test create_TimeSampler(dates, "2-day")[1].indices == ref
+        @test create_TimeSampler(dates, Symbol("2-day"))[1].indices == ref
+        @test create_TimeSampler(dates, TimePeriodSample(2, "day"))[1].indices == ref
+
+        for period in ("2-day", Symbol("2-day"), Day(2))
+            @test time_resample(data, dates, period; origin=:start) == [1.5, 3.5, 5.5]
+        end
+        @test time_resample(data, dates, by_start) == [1.5, 3.5, 5.5]
+        mat = hcat(data, 2 .* data)
+        expected = hcat([1.5, 3.5, 5.5], [3.0, 7.0, 11.0])
+        @test time_resample(mat, dates, by_start) == expected
+        @test time_resample(permutedims(mat), dates, by_start; dim=2) == permutedims(expected)
+        @test_throws ErrorException time_resample(data[1:5], dates, "2-day")
+        @test time_resample_dates(dates, by_start) == [Date(2000, 1, 1), Date(2000, 1, 3), Date(2000, 1, 5)]
+    end
+
+    @testset "period anomaly, MSC and IAV" begin
+        daily = collect(Date(2001, 1, 1):Day(1):Date(2003, 12, 31))
+        data = rand(length(daily))
+
+        msc = time_resample(data, daily, TimePeriodMSC(Day(8)))
+        @test length(msc) == 46
+        first_bin = [i for y in 0:2 for i in (365y+1):(365y+8)]
+        @test msc[1] ≈ mean(data[first_bin])
+        @test time_resample_dates(daily, "8-day_msc") == collect(0:45)
+
+        iav_samplers = create_TimeSampler(daily, TimePeriodIAV(Day(8)))
+        @test length(iav_samplers[1].indices) == 3 * 46
+        @test length(iav_samplers[2].indices) == 3 * 46
+        iav = time_resample(data, daily, "8-day_iav")
+        @test iav ≈ do_time_sampling(data, iav_samplers, TimeDiff())
+        @test length(time_resample_dates(daily, "8-day_iav")) == length(iav)
+        # with equal bin sizes every position of the iav averages to zero
+        @test abs(sum(iav[[1, 47, 93]])) < 1e-10
+
+        anomaly = time_resample(data, daily, "8-day_anomaly")
+        @test anomaly ≈ time_resample(data, daily, "8-day") .- mean(data)
+        @test time_resample(data, daily, "8-day_msc_anomaly") ≈ msc .- mean(data)
+
+        halfhourly = collect(DateTime(2001, 1, 1):Minute(30):DateTime(2001, 1, 10, 23, 30))
+        @test length(time_resample(rand(length(halfhourly)), halfhourly, TimePeriodMSC(Minute(30); cycle=Day(1)))) == 48
+        @test_throws ErrorException TimePeriodMSC(Year(1))
+        @test_throws ErrorException TimePeriodMSC(Month(1); cycle=Day(1))
+        @test_throws ErrorException TimePeriodIAV(Day(2); cycle=Day(1))
+    end
+
+    @testset "seasonal cycles match calendar dates across leap years" begin
+        # 2003 and 2005 have no Feb 29, 2004 has one
+        daily = collect(Date(2003, 1, 1):Day(1):Date(2005, 12, 31))
+        data = Float64.(dayofyear.(daily))
+        msc = time_resample(data, daily, "day_msc")
+        positions = time_resample_dates(daily, "day_msc")
+        @test length(msc) == 366
+        @test sort(positions) == collect(0:365)
+        by_position = Dict(zip(positions, msc))
+        # Feb 29 only has the leap year, Mar 1 and Dec 31 have all three years
+        @test by_position[59] == 60.0
+        @test by_position[60] ≈ mean([60.0, 61.0, 60.0])
+        @test by_position[365] ≈ mean([365.0, 366.0, 365.0])
+        groups = create_TimeSampler(daily, TimeDayMSC())[1].indices
+        @test all(g -> length(unique(monthday.(daily[g]))) == 1, groups)
+        @test count(g -> length(g) == 1, groups) == 1
+
+        # the IAV of every date is measured against the same calendar date
+        iav_inds = create_TimeSampler(daily, TimeDayIAV())[2].indices
+        @test all(i -> all(==(monthday(daily[i])), monthday.(daily[iav_inds[i]])), eachindex(daily))
+
+        # 8-day bins share their edges in every year, bin 7 holds Feb 26 to Mar 4
+        bin_starts = time_resample_dates(daily, "8-day_iav")
+        @test Date(2003, 2, 26) in bin_starts && Date(2004, 2, 26) in bin_starts
+        @test Date(2003, 3, 5) in bin_starts && Date(2004, 3, 5) in bin_starts
+        @test length(time_resample(data, daily, "8-day_msc")) == 46
+
+        # the MODIS style :year origin keeps counting plain days from Jan 1
+        @test Date(2003, 2, 26) in time_resample_dates(daily, "8-day"; origin=:year)
+        @test Date(2003, 3, 6) in time_resample_dates(daily, "8-day"; origin=:year)
+    end
+
+    @testset "3-hour MSC of hourly data" begin
+        hourly = collect(DateTime(2001, 1, 1):Hour(1):DateTime(2002, 12, 31, 23))
+        data = rand(length(hourly))
+        seasonal = time_resample(data, hourly, "3-hour_msc")
+        @test length(seasonal) == 2920
+        @test seasonal[1] ≈ mean(data[[1, 2, 3, 8761, 8762, 8763]])
+        @test time_resample(data, hourly, "3-hour-msc") == seasonal
+        @test time_resample(data, hourly, "3-hour_msc_year") == seasonal
+
+        diurnal = time_resample(data, hourly, "3-hour_msc_day")
+        @test length(diurnal) == 8
+        @test diurnal[2] ≈ mean(data[[i for i in eachindex(hourly) if hour(hourly[i]) in 3:5]])
+        @test time_resample(data, hourly, "3-hour-msc-day") == diurnal
+        @test time_resample(data, hourly, "3h_msc_day") == diurnal
+        @test time_resample(data, hourly, "3hour") == time_resample(data, hourly, "3-hour")
+        @test time_resample(data, hourly, "3-hour_msc"; cycle=Day(1)) == diurnal
+    end
+
+    @testset "spec strings" begin
+        @test get_TimeSampler("8-day_msc") == TimePeriodMSC(Day(8))
+        @test get_TimeSampler("month_iav") == TimePeriodIAV(Month(1))
+        @test get_TimeSampler("6-hour_anomaly") == TimePeriodAnomaly(Hour(6))
+        @test get_TimeSampler("8-day_msc_anomaly") == TimePeriodMSCAnomaly(Day(8))
+        @test get_TimeSampler("30-min-msc-anomaly-day") == TimePeriodMSCAnomaly(Minute(30), Day(1))
+        @test get_TimeSampler("30-min_iav_day") == TimePeriodIAV(Minute(30), Day(1))
+        @test get_TimeSampler(:day) == TimePeriodSample(Day(1))
+        @test get_TimeSampler("mean") == TimeMean()
+        @test get_TimeSampler("3h") == TimePeriodSample(Hour(3))
+        @test get_TimeSampler("3hour_msc_day") == TimePeriodMSC(Hour(3), Day(1))
+        @test get_TimeSampler("8d-iav") == TimePeriodIAV(Day(8))
+        @test get_TimeSampler("30min_msc_anomaly_d") == TimePeriodMSCAnomaly(Minute(30), Day(1))
+        @test_throws ErrorException get_TimeSampler("0h")
+        @test_throws ErrorException get_TimeSampler("15m_msc")
+        @test get_TimeSampler("TimeDayMSC") == TimeDayMSC()
+        @test_throws ErrorException get_TimeSampler("3-hour_foo")
+        @test_throws ErrorException get_TimeSampler("3-hour_anomaly_day")
+    end
+
+    @testset "TimeMean" begin
+        dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 10))
+        mat = rand(length(dates), 3)
+        @test time_resample(mat, dates, :mean) ≈ mean(mat; dims=1)
+        @test time_resample(mat, dates, :mean; sampler_func=sum) ≈ sum(mat; dims=1)
+        @test create_TimeSampler(dates, TimeMean())[1].indices == [1:10]
+        @test create_TimeSampler(dates, TimeAllYears())[1].indices == [1:10]
+    end
+
+    @testset "calendar methods rebuilt on period methods" begin
+        # reference implementations of the previous grouping by date component
+        legacy_groups(keys) = TimeSamplers.getIndicesForTimeGroups(keys)
+        legacy_by_value(keys) = [findall(==(k), keys) for k in unique(keys)]
+
+        daily = collect(Date(2000, 1, 1):Day(1):Date(2002, 7, 20))
+        hourly = collect(DateTime(2000, 1, 1):Hour(1):DateTime(2000, 3, 3, 23))
+        for dates in (daily, hourly)
+            @test create_TimeSampler(dates, TimeDay())[1].indices == legacy_groups(day.(dates))
+            @test create_TimeSampler(dates, TimeMonth())[1].indices == legacy_groups(month.(dates))
+            @test create_TimeSampler(dates, TimeYear())[1].indices == legacy_groups(year.(dates))
+            @test create_TimeSampler(dates, TimeDayMSC())[1].indices == legacy_by_value(monthday.(dates))
+            @test create_TimeSampler(dates, TimeMonthMSC())[1].indices == legacy_by_value(month.(dates))
+            @test create_TimeSampler(dates, TimeMonthAnomaly())[2].indices == [1:length(dates)]
+            month_iav = create_TimeSampler(dates, TimeMonthIAV())[2].indices
+            month_msc = legacy_by_value(month.(dates))
+            @test month_iav == [month_msc[month(dates[first(r)])] for r in legacy_groups(month.(dates))]
+        end
+        @test create_TimeSampler(hourly, TimeHour())[1].indices == legacy_groups(hour.(hourly))
+        @test create_TimeSampler(hourly, TimeHourDayMean())[1].indices == legacy_by_value(hour.(hourly))
+        calendar_days = unique(monthday.(daily))
+        day_groups = legacy_by_value(monthday.(daily))
+        @test create_TimeSampler(daily, TimeDayIAV())[2].indices == [day_groups[findfirst(==(md), calendar_days)] for md in monthday.(daily)]
+
+        # coarse inputs no longer merge different days, months or years
+        monthly = collect(Date(2000, 1, 1):Month(1):Date(2000, 12, 1))
+        @test length(create_TimeSampler(monthly, TimeDay())[1].indices) == 12
+        yearly = [Date(2000, 1, 1), Date(2001, 1, 1)]
+        @test length(create_TimeSampler(yearly, TimeMonth())[1].indices) == 2
+        daily_dt = collect(DateTime(2000, 1, 1):Day(1):DateTime(2000, 1, 5))
+        @test length(create_TimeSampler(daily_dt, TimeHour())[1].indices) == 5
+
+        # skip_sampling keeps its previous meaning per method
+        @test create_TimeSampler(daily, TimeDay(), mean, true) == [nothing]
+        @test create_TimeSampler(daily, TimeMonth(), mean, true)[1] isa TimeSample
+        @test create_TimeSampler(daily, TimeYear(), mean, true)[1] isa TimeSample
+        @test create_TimeSampler(daily, TimeMonthIAV(), mean, true)[1] isa TimeSample
+        @test create_TimeSampler(daily, TimeDayAnomaly(), mean, true)[1] === nothing
+    end
 end
-
-
