@@ -22,6 +22,7 @@ A Julia package for temporal sampling, aggregation, and resampling of time serie
 ## Features
 
 - **Flexible Time Aggregation**: Aggregate data to hourly, daily, monthly, or yearly time steps
+- **n-unit Resampling**: Resample to any period such as `"30-sec"`, `"6-hour"`, `"8-day"` or `"3-month"`, including anomalies, MSC and IAV
 - **Anomaly Calculations**: Compute anomalies at various time scales
 - **Climatological Statistics**: Calculate multi-year seasonal cycles (MSC) and inter-annual variability (IAV)
 - **Efficient Views**: Uses array views to avoid unnecessary data copying
@@ -53,6 +54,40 @@ data = rand(length(dates), 2)
 sampled_data = do_time_sampling(data, daily_samplers)
 ```
 
+## Resampling to n-unit periods
+
+`time_resample` resamples data to any period given as a base unit and a count. Supported
+units are second, minute, hour, day, week, month and year, with aliases such as `sec`,
+`min`, `hr`, `mon` and `yr`.
+
+```julia
+hourly = collect(DateTime(2000, 1, 1):Hour(1):DateTime(2001, 12, 31, 23))
+data = rand(length(hourly), 2)
+
+time_resample(data, hourly, "6-hour")                    # 6-hourly means
+time_resample(data, hourly, Hour(6))                     # same, from a Dates.Period
+time_resample(data, hourly, :day; sampler_func=sum)      # daily sums
+time_resample(data, hourly, "8-day"; origin=:year)       # 8-day bins restarting each Jan 1
+time_resample(data, hourly, "3-hour_msc")                # seasonal cycle at 3-hour resolution
+time_resample(data, hourly, "3-hour_msc_day")            # mean diurnal cycle, 8 values
+time_resample(data, hourly, "8-day_iav")                 # 8-day values minus their seasonal cycle
+time_resample(data, hourly, :mean)                       # mean over the whole record
+time_resample_dates(hourly, "6-hour")                    # bin start dates of the output
+```
+
+A period spec has the form `<n>-<unit>[_<kind>[_<cycle>]]`, where the separator may be
+`_` or `-`. The count can also be joined to the unit, so `"3-hour"`, `"3hour"`, `"3h"` and
+`"3 hour"` are the same, and `"3h_msc_day"` works too. The kind is one of `anomaly`, `msc`, `msc_anomaly` or `iav`, and the cycle
+defaults to `year`. The same specs work with `create_TimeSampler`, and the types
+`TimePeriodSample`, `TimePeriodAnomaly`, `TimePeriodMSC`, `TimePeriodMSCAnomaly` and
+`TimePeriodIAV` can be used directly.
+
+Bins are aligned to the calendar by default. Use `origin=:start` to count bins from the
+first date, or `origin=:year` to restart bins every Jan 1. MSC and IAV bins always
+restart at the start of each cycle, and the MSC pools all timesteps at a cycle position
+across all cycles. In a yearly cycle, days are matched by calendar date, so Mar 1 is always
+averaged with Mar 1, and Feb 29 only has values from leap years.
+
 ## Available Time Sampling Methods
 
 ### Basic Aggregation
@@ -69,6 +104,13 @@ sampled_data = do_time_sampling(data, daily_samplers)
 - `TimeYearAnomaly`: aggregation to yearly anomalies
 - `TimeDayMSCAnomaly`: aggregation to daily MSC anomalies
 - `TimeMonthMSCAnomaly`: aggregation to monthly MSC anomalies
+
+### Period Based
+- `TimePeriodSample`: aggregation to bins of an n-unit period
+- `TimePeriodAnomaly`: aggregation to anomalies of n-unit bins
+- `TimePeriodMSC`: aggregation to the mean seasonal or diurnal cycle of n-unit bins
+- `TimePeriodMSCAnomaly`: aggregation to anomalies of the mean cycle of n-unit bins
+- `TimePeriodIAV`: aggregation to the inter-annual variability of n-unit bins
 
 ### Climatological Statistics
 - `TimeDayMSC`: aggregation to daily MSC
