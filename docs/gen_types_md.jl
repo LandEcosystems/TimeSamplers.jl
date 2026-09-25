@@ -65,6 +65,7 @@ open(types_path, "w") do io
     purpose_text = time_sampler_purpose(TimeSample)
     write(io, "$(purpose_text)\n\n")
     # Get hierarchy from get_type_docstring and extract it
+    write(io, "```@docs\nTimeSample\n```\n\n")
     sample_docstr = get_type_docstring(TimeSample, purpose_function=time_sampler_purpose)
     hierarchy_match = match(r"```([^`]+)```", sample_docstr)
     if hierarchy_match !== nothing
@@ -76,6 +77,7 @@ open(types_path, "w") do io
     write(io, "`TimeSampleViewInstance`\n\n")
     purpose_text = time_sampler_purpose(TimeSampleViewInstance)
     write(io, "$(purpose_text)\n\n")
+    write(io, "```@docs\nTimeSampleViewInstance\n```\n\n")
     instance_docstr = get_type_docstring(TimeSampleViewInstance, purpose_function=time_sampler_purpose)
     hierarchy_match = match(r"```([^`]+)```", instance_docstr)
     if hierarchy_match !== nothing
@@ -146,6 +148,7 @@ open(types_path, "w") do io
     climatological = filter(t -> nameof(t) in [:TimeDayMSC, :TimeMonthMSC, :TimeDayIAV, :TimeMonthIAV, :TimeHourDayMean], time_sampler_types)
     time_selection = filter(t -> nameof(t) in [:TimeAllYears, :TimeFirstYear, :TimeRandomYear, :TimeShuffleYears], time_sampler_types)
     special = filter(t -> nameof(t) in [:TimeArray, :TimeSizedArray, :TimeIndexed, :TimeDiff, :TimeNoDiff], time_sampler_types)
+    period_based = sort!([TimePeriodMethod; subtypes(TimePeriodMethod)], by=nameof)
     
     # Basic Aggregation
     if !isempty(basic_agg)
@@ -168,6 +171,32 @@ open(types_path, "w") do io
         end
     end
     
+    # Period Based
+    if !isempty(period_based)
+        write(io, "## Period Based\n\n")
+        for (idx, typ) in enumerate(period_based)
+            type_name = string(nameof(typ))
+            formatted, hierarchy = format_type_docstring(typ, time_sampler_purpose)
+            if Docs.hasdoc(TimeSamplers, nameof(typ))
+                # the full docstring explains the fields and the keywords
+                write(io, "```@docs\n$(type_name)\n```\n\n")
+            else
+                write(io, "`$(type_name)`\n\n")
+                write(io, formatted)
+                write(io, "\n\n")
+            end
+            if hierarchy !== nothing && !isempty(strip(hierarchy))
+                write(io, "```\n")
+                write(io, "$(hierarchy)\n")
+                write(io, "```\n\n")
+            end
+            # Add separator between types, but not after the last one
+            if idx < length(period_based)
+                write(io, "---\n\n")
+            end
+        end
+    end
+
     # Anomalies
     if !isempty(anomalies)
         write(io, "## Anomalies\n\n")

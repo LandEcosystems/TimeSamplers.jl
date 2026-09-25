@@ -39,7 +39,7 @@ function extract_function_code(file_path::String, func_name::String)
     # Find all function definitions - look for "function func_name"
     # Escape special regex characters in function name
     escaped_name = escape_string(func_name, raw"\^$[]().*+?{}|")
-    func_pattern = Regex("^\\s*function\\s+$escaped_name", "i")
+    func_pattern = Regex("^\\s*function\\s+$escaped_name(\\s|\\(|\$)")
     
     function_starts = Int[]
     for (i, line) in enumerate(lines)
@@ -55,6 +55,8 @@ function extract_function_code(file_path::String, func_name::String)
     # Extract all methods
     all_methods = String[]
     for function_start in function_starts
+        # A one line declaration has no body to show
+        occursin(Regex("^\\s*function\\s+$escaped_name\\s+end\\s*\$"), lines[function_start]) && continue
         # Extract function body until matching 'end' at same or less indentation
         function_lines = String[]
         start_line = lines[function_start]
@@ -118,31 +120,12 @@ function extract_function_code(file_path::String, func_name::String)
     return join(unique_methods, "\n\n")
 end
 
-# Find which source file contains a function
-function find_function_file(func_name::String)
-    source_files = [
-        "createTimeSampler.jl",
-        "doTimeSampling.jl",
-        "TimeSamplers.jl",
-        "TimeSamplersTypes.jl",
-        "utilsTimeSamplers.jl",
-    ]
-    
-    for file in source_files
-        file_path = joinpath(src_dir, file)
-        if isfile(file_path)
-            code = read(file_path, String)
-            # Simple string search - check if function name appears after "function" keyword
-            # Match patterns like "function func_name" or "function func_name("
-            search_pattern1 = "function $func_name"
-            search_pattern2 = "function $(func_name)("
-            if occursin(search_pattern1, code) || occursin(search_pattern2, code)
-                return file_path
-            end
-        end
-    end
-    
-    return nothing
+# Find the source files that define a function
+function find_function_files(func_name::String)
+    escaped_name = escape_string(func_name, raw"\^$[]().*+?{}|")
+    func_pattern = Regex("(?m)^\\s*function\\s+$escaped_name(\\s|\\(|\$)")
+    source_files = sort(filter(f -> endswith(f, ".jl"), readdir(src_dir)))
+    return [joinpath(src_dir, f) for f in source_files if occursin(func_pattern, read(joinpath(src_dir, f), String))]
 end
 
 # Generate API documentation
@@ -152,6 +135,7 @@ open(api_path, "w") do io
     write(io, "CurrentModule = TimeSamplers\n")
     write(io, "```\n\n")
     write(io, "# API\n\n")
+    write(io, "```@docs\nTimeSamplers\n```\n\n")
     
     # Get all exported functions
     exported_names = names(TimeSamplers, all=false)
@@ -180,16 +164,14 @@ open(api_path, "w") do io
         write(io, "```\n\n")
         
         # Add code section right after the docstring
-        func_file = find_function_file(string(func_name))
-        if func_file !== nothing
-            func_code = extract_function_code(func_file, string(func_name))
-            if func_code !== nothing && strip(func_code) != ""
-                write(io, "::: details Code\n\n")
-                write(io, "```julia\n")
-                write(io, func_code)
-                write(io, "\n```\n\n")
-                write(io, ":::\n\n")
-            end
+        func_codes = [extract_function_code(f, string(func_name)) for f in find_function_files(string(func_name))]
+        func_codes = filter(c -> c !== nothing && strip(c) != "", func_codes)
+        if !isempty(func_codes)
+            write(io, "::: details Code\n\n")
+            write(io, "```julia\n")
+            write(io, join(func_codes, "\n\n"))
+            write(io, "\n```\n\n")
+            write(io, ":::\n\n")
         end
     end
 end
