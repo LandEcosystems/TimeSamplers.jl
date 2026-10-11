@@ -12,6 +12,15 @@ Create one or more temporal sampling/aggregation objects (`TimeSample`) for a gi
 - `t_step`: The target sampling/aggregation specification. Common forms:
   - `::Union{String, Symbol}`: A name that resolves to a time-sampler type in `TimeSampler` (e.g. `"TimeDay"` / `:TimeDay`).
   - `::TimeSampleMethod`: A concrete method instance (e.g. `TimeDay()`), used via multiple dispatch.
+  - `::Union{String, Symbol}` period spec: `"6-hour"`, `"8-day_msc"` or `:day`
+    resolve to the period methods `TimePeriodSample`, `TimePeriodAnomaly`,
+    `TimePeriodMSC`, `TimePeriodMSCAnomaly` and `TimePeriodIAV`. See
+    `get_TimeSampler`.
+  - `::Dates.Period`: resamples to bins of that period, same as
+    `TimePeriodSample(period)`.
+
+`date_vector` must be sorted in ascending order, because bins are formed from
+contiguous runs of dates.
 - `sampler_func`: Function to apply per group (defaults to `mean`).
 - `skip_sampling`: If `true`, return `nothing` for samplers that would be a no-op (defaults to `false`).
 
@@ -37,16 +46,16 @@ julia> dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 10))
 
 julia> daily_sampler = create_TimeSampler(dates, TimeDay())
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean, 10)
 
 julia> monthly_sampler = create_TimeSampler(dates, "TimeMonth")
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean, 10)
 
 julia> anomaly_sampler = create_TimeSampler(dates, TimeDayAnomaly())
 2-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean, 10)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean, 10)
 ```
 """
 function create_TimeSampler end
@@ -57,132 +66,32 @@ function create_TimeSampler(date_vector, t_step::Union{String, Symbol}, sampler_
 end
 
 function create_TimeSampler(date_vector, ::TimeMean, sampler_func=mean, skip_sampling=false)
-    stepvectime = getTimeArray([1:length(date_vector)], getTypeOfTimeIndexArray())
-    mean_agg = TimeSample(stepvectime, sampler_func)
+    mean_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [mean_agg,]
 end
 
-function create_TimeSampler(date_vector, ::TimeDay, sampler_func=mean, skip_sampling=false)
-    stepvectime = getIndicesForTimeGroups(day.(date_vector))
-    day_agg = TimeSample(stepvectime, sampler_func)
-    if skip_sampling
-        day_agg = nothing
-    end
-    return [day_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeDayAnomaly, sampler_func=mean, skip_sampling=false)
-    day_agg = create_TimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [day_agg[1], mean_agg[1]]
-end
-
-function create_TimeSampler(date_vector, ::TimeDayIAV, sampler_func=mean, skip_sampling=false)
-    days = dayofyear.(date_vector)
-    day_aggr = create_TimeSampler(date_vector, TimeDay(), sampler_func, skip_sampling)
-    daysMsc = unique(days)
-    daysMsc_inds = [findall(==(dd), days) for dd in daysMsc]
-    daysIav_inds = [getTimeArray(daysMsc_inds[d], getTypeOfTimeIndexArray()) for d in days]
-    dayIav_agg = TimeSample(daysIav_inds, sampler_func)
-    return [day_aggr[1], dayIav_agg]
-end
-
-function create_TimeSampler(date_vector, ::TimeDayMSC, sampler_func=mean, skip_sampling=false)
-    days = dayofyear.(date_vector)
-    daysMsc = unique(days)
-    days_ind = [getTimeArray(findall(==(dd), days), getTypeOfTimeIndexArray()) for dd in daysMsc]
-    dat_msc_agg = TimeSample(days_ind, sampler_func)
-    return [dat_msc_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeDayMSCAnomaly, sampler_func=mean, skip_sampling=false)
-    dat_msc_agg = create_TimeSampler(date_vector, TimeDayMSC(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [dat_msc_agg[1], mean_agg[1]]
-end
-
-
-function create_TimeSampler(date_vector, ::TimeHour, sampler_func=mean, skip_sampling=false)
-    stepvectime = getIndicesForTimeGroups(hour.(date_vector))
-    hour_agg = TimeSample(stepvectime, sampler_func)
-    if skip_sampling
-        hour_agg = nothing
-    end
-    return [hour_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeHourAnomaly, sampler_func=mean, skip_sampling=false)
-    hour_agg = create_TimeSampler(date_vector, TimeHour(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [hour_agg[1], mean_agg[1]]
-end
-
-function create_TimeSampler(date_vector, ::TimeHourDayMean, sampler_func=mean, skip_sampling=false)
-    hours = hour.(date_vector)
-    hours_day = unique(hours)
-    t_hour_msc_agg = TimeSample([getTimeArray(findall(==(hh), hours), getTypeOfTimeIndexArray()) for hh in hours_day], sampler_func)
-    return [t_hour_msc_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeMonth, sampler_func=mean, skip_sampling=false)
-    stepvectime = getIndicesForTimeGroups(month.(date_vector))
-    month_agg = TimeSample(stepvectime, sampler_func)
-    return [month_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeMonthAnomaly, sampler_func=mean, skip_sampling=false)
-    month_agg = create_TimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [month_agg[1], mean_agg[1]]
-end
-
-function create_TimeSampler(date_vector, ::TimeMonthIAV, sampler_func=mean, skip_sampling=false)
-    months = month.(date_vector) # month for each time step, size = number of time steps
-    month_aggr = create_TimeSampler(date_vector, TimeMonth(), sampler_func, skip_sampling) #to get the month per month, size = number of months
-    months_series = Int.(view(months, month_aggr[1])) # aggregate the months per time step
-    monthsMsc = unique(months) # get unique months
-    monthsMsc_inds = [findall(==(mm), months) for mm in monthsMsc] # all timesteps per unique month
-    monthsIav_inds = [getTimeArray(monthsMsc_inds[mm], getTypeOfTimeIndexArray()) for mm in months_series] # repeat monthlymsc indices for each month in time range
-    monthIav_agg = TimeSample(monthsIav_inds, sampler_func) # generate aggregator
-    return [month_aggr[1], monthIav_agg]
-end
-
-function create_TimeSampler(date_vector, ::TimeMonthMSC, sampler_func=mean, skip_sampling=false)
-    months = month.(date_vector)
-    monthsMsc = unique(months)
-    t_month_msc_agg = TimeSample([getTimeArray(findall(==(mm), months), getTypeOfTimeIndexArray()) for mm in monthsMsc], sampler_func)
-    return [t_month_msc_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeMonthMSCAnomaly, sampler_func=mean, skip_sampling=false)
-    t_month_msc_agg = create_TimeSampler(date_vector, TimeMonthMSC(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [t_month_msc_agg[1], mean_agg[1]]
-end
-
-function create_TimeSampler(date_vector, ::TimeYear, sampler_func=mean, skip_sampling=false)
-    stepvectime = getTimeArray(getIndicesForTimeGroups(year.(date_vector)), getTypeOfTimeIndexArray())
-    year_agg = TimeSample(stepvectime, sampler_func)
-    return [year_agg,]
-end
-
-function create_TimeSampler(date_vector, ::TimeYearAnomaly, sampler_func=mean, skip_sampling=false)
-    year_agg = create_TimeSampler(date_vector, TimeYear(), sampler_func, skip_sampling)
-    mean_agg = create_TimeSampler(date_vector, TimeMean(), sampler_func)
-    return [year_agg[1], mean_agg[1]]
-end
-
 function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip_sampling=false)
-    stepvectime = getTimeArray([1:length(date_vector)], getTypeOfTimeIndexArray())
-    all_agg = TimeSample(stepvectime, sampler_func)
+    all_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [all_agg,]
 end
+
+# Calendar methods are built on the generic period methods, so they behave exactly
+# like their n-step equivalents, including for skip_sampling.
+const TimeCalendarMethod = Union{TimeHour,TimeHourAnomaly,TimeHourDayMean,
+    TimeDay,TimeDayAnomaly,TimeDayIAV,TimeDayMSC,TimeDayMSCAnomaly,
+    TimeMonth,TimeMonthAnomaly,TimeMonthIAV,TimeMonthMSC,TimeMonthMSCAnomaly,
+    TimeYear,TimeYearAnomaly}
+
+function create_TimeSampler(date_vector, t_step::TimeCalendarMethod, sampler_func=mean, skip_sampling=false)
+    return create_TimeSampler(date_vector, getTimePeriodMethod(t_step), sampler_func, skip_sampling)
+end
+
 
 function create_TimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, skip_sampling=false)
     years = year.(date_vector)
     first_year = minimum(years)
     year_inds = getIndexForSelectedYear(years, first_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -190,7 +99,7 @@ function create_TimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, sk
     years = year.(date_vector)
     random_year = rand(unique(years))
     year_inds = getIndexForSelectedYear(years, random_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -199,7 +108,7 @@ function create_TimeSampler(date_vector, ::TimeShuffleYears, sampler_func=mean, 
     unique_years = unique(years)
     shuffled_unique_years = sample(unique_years, length(unique_years), replace=false)
     year_inds = getIndexForSelectedYear.(Ref(years), shuffled_unique_years)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -212,9 +121,20 @@ Creates and returns a time aggregator instance based on the provided sampling/ag
 # Arguments
 - `aggr::Symbol`: Symbol specifying the time sampling/aggregation method type name (e.g. `:TimeDay`)
 - `aggr::String`: String specifying the time sampling/aggregation method type name (e.g. `"TimeDay"`)
+- `origin`: bin origin used when `aggr` is a period spec, see `TimePeriodSample`
+- `cycle`: cycle used when `aggr` is a period spec of kind msc, msc_anomaly or iav
+
+A snake case name such as `"first_year"` or `"day_MSC"` resolves to the method
+type `TimeFirstYear` or `TimeDayMSC`, with the same rule as `to_uppercase_first`
+in OmniTools. This only applies when `origin` and `cycle` keep their defaults.
+
+Any other name is read as a period spec with the grammar
+`<n>-<unit>[_<kind>[_<cycle>]]`. The separator may be `_` or `-`, and the kind is one
+of `anomaly`, `msc`, `msc_anomaly` or `iav`. The count may also be joined to the
+unit, as in `"3h"`. The spec `mean` gives `TimeMean()`.
 
 # Returns
-An instance of the corresponding `TimeSampleMethod` subtype.
+An instance of the corresponding `TimeSamplerMethod` subtype.
 
 # Examples
 ```jldoctest
@@ -228,6 +148,12 @@ TimeMonth()
 
 julia> get_TimeSampler("TimeYear")
 TimeYear()
+
+julia> get_TimeSampler("6-hour")
+TimePeriodSample{Hour}(Hour(6), :calendar)
+
+julia> get_TimeSampler("3-hour_msc_day")
+TimePeriodMSC{Hour, Day}(Hour(3), Day(1))
 ```
 
 # Notes
@@ -235,14 +161,36 @@ TimeYear()
 """
 function get_TimeSampler end
 
-function get_TimeSampler(aggr::Symbol)
-    return get_TimeSampler(string(aggr))
+function get_TimeSampler(aggr::Symbol; kwargs...)
+    return get_TimeSampler(string(aggr); kwargs...)
 end
 
-function get_TimeSampler(aggr::String)
-    # uc_first = String(aggr)
-    # uc_first = toUpperCaseFirst(aggr, "Time")
-    return getfield(TimeSamplers, Symbol(aggr))()
+function get_TimeSampler(aggr::String; origin=:calendar, cycle=Year(1))
+    method = getTimeSamplerMethodByName(aggr)
+    isnothing(method) || return method
+    # snake case names only map to the calendar methods, which have no origin or
+    # cycle, so other keywords are only honoured by a period spec
+    if origin === :calendar && cycle == Year(1)
+        method = getTimeSamplerMethodByName("Time" * join(uppercasefirst.(split(aggr, "_"))))
+        isnothing(method) || return method
+    end
+    return getTimePeriodMethodFromSpec(aggr; origin=origin, cycle=cycle)
+end
+
+"""
+    getTimeSamplerMethodByName(type_name)
+
+An instance of the method type named `type_name`, or `nothing` when no concrete
+method type has that name.
+"""
+function getTimeSamplerMethodByName(type_name)
+    type_sym = Symbol(type_name)
+    isdefined(TimeSamplers, type_sym) || return nothing
+    method_type = getfield(TimeSamplers, type_sym)
+    if method_type isa DataType && method_type <: TimeSamplerMethod && isconcretetype(method_type)
+        return method_type()
+    end
+    return nothing
 end
 
 

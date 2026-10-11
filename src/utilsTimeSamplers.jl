@@ -44,6 +44,7 @@ extend the view function for TimeSampleViewInstance type
 - `dim`: the dimension along which the sampling/aggregation should be done
 """
 function Base.view(x::AbstractArray, v::TimeSample; dim=1)
+    checkTimeLength(x, v.n_time, dim)
     subarray_t = Base.promote_op(getindex, typeof(x), eltype(v.indices))
     t = Base.promote_op(v.sampler_func, subarray_t)
     TimeSampleViewInstance{t,ndims(x),dim,typeof(x),typeof(v)}(x, v, Val{dim}())

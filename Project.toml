@@ -1,8 +1,8 @@
 name = "TimeSamplers"
 uuid = "a27efc82-29b7-4223-84cd-12fc64c7a5bb"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["TimeSamplers.jl Contributors"]
-description = "A package for temporal sampling, aggregation, and resampling of time series data"
+description = "A package for temporal sampling, aggregation, and resampling of N-dimensional arrays along their time dimension"
 license = "EUPL-1.2"
 readme = "README.md"
 repository = "https://github.com/LandEcosystems/TimeSamplers.jl"
@@ -13,4 +13,4 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 StatsBase = "0.34.9"
-julia = "1.10, 1.11"
+julia = "1.10"

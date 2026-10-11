@@ -17,11 +17,14 @@
 [julia-img]: https://img.shields.io/badge/julia-v1.10+-blue.svg
 [julia-url]: https://julialang.org/
 
-A Julia package for temporal sampling, aggregation, and resampling of time series data.
+![Synthetic hourly temperature resampled to 6-hour and daily bins, to 8-day and monthly bins, and to mean seasonal cycles](docs/src/assets/banner.png)
+
+A Julia package for temporal sampling, aggregation, and resampling of N-dimensional arrays along their time dimension.
 
 ## Features
 
 - **Flexible Time Aggregation**: Aggregate data to hourly, daily, monthly, or yearly time steps
+- **n-unit Resampling**: Resample to any period such as `"30-sec"`, `"6-hour"`, `"8-day"` or `"3-month"`, including anomalies, MSC and IAV
 - **Anomaly Calculations**: Compute anomalies at various time scales
 - **Climatological Statistics**: Calculate multi-year seasonal cycles (MSC) and inter-annual variability (IAV)
 - **Efficient Views**: Uses array views to avoid unnecessary data copying
@@ -53,35 +56,116 @@ data = rand(length(dates), 2)
 sampled_data = do_time_sampling(data, daily_samplers)
 ```
 
+## Resampling to n-unit periods
+
+`time_resample` resamples data to any period given as a base unit and a count. Supported
+units are second, minute, hour, day, week, month and year, with aliases such as `sec`,
+`min`, `hr`, `mon` and `yr`.
+
+```julia
+hourly = collect(DateTime(2000, 1, 1):Hour(1):DateTime(2001, 12, 31, 23))
+data = rand(length(hourly), 2)
+
+time_resample(data, hourly, "6-hour")                    # 6-hourly means
+time_resample(data, hourly, Hour(6))                     # same, from a Dates.Period
+time_resample(data, hourly, :day; sampler_func=sum)      # daily sums
+time_resample(data, hourly, "8-day"; origin=:year)       # 8-day bins restarting each Jan 1
+time_resample(data, hourly, "3-hour_msc")                # seasonal cycle at 3-hour resolution
+time_resample(data, hourly, "3-hour_msc_day")            # mean diurnal cycle, 8 values
+time_resample(data, hourly, "8-day_iav")                 # 8-day values minus their seasonal cycle
+time_resample(data, hourly, :mean)                       # mean over the whole record
+time_resample_dates(hourly, "6-hour")                    # bin start dates of the output
+```
+
+A period spec has the form `<n>-<unit>[_<kind>[_<cycle>]]`, where the separator may be
+`_` or `-`. The count can also be joined to the unit, so `"3-hour"`, `"3hour"`, `"3h"` and
+`"3 hour"` are the same, and `"3h_msc_day"` works too. The kind is one of `anomaly`, `msc`, `msc_anomaly` or `iav`, and the cycle
+defaults to `year`. The same specs work with `create_TimeSampler`, and the types
+`TimePeriodSample`, `TimePeriodAnomaly`, `TimePeriodMSC`, `TimePeriodMSCAnomaly` and
+`TimePeriodIAV` can be used directly.
+
+Bins are aligned to the calendar by default. Use `origin=:start` to count bins from the
+first date, or `origin=:year` to restart bins every Jan 1. MSC and IAV bins always
+restart at the start of each cycle, and the MSC pools all timesteps at a cycle position
+across all cycles. In a yearly cycle, days are matched by calendar date, so Mar 1 is always
+averaged with Mar 1, and Feb 29 only has values from leap years.
+
+## Build once, apply many times
+
+When many arrays share one time axis, such as the model realizations of an
+optimization, build a `TimeResampler` once and reuse it. Applying it only allocates
+the output.
+
+```julia
+rs = TimeResampler(hourly, "8-day_iav"; sampler_func=sum)
+for realization in realizations
+    iav = time_resample(realization, rs)
+end
+time_resample_dates(rs)                                  # dates of the output
+```
+
+`time_sampling_type(rs.method)` tells how the samplers are combined, and
+`time_sampling_period("day_MSC")` gives the length of the bins, here one day.
+Snake case names such as `"first_year"` or `"day_MSC"` resolve to the method types
+`TimeFirstYear` and `TimeDayMSC`.
+
 ## Available Time Sampling Methods
 
-### Basic Aggregation
-- `TimeHour`: aggregation to hourly time steps
-- `TimeDay`: aggregation to daily time steps
-- `TimeMonth`: aggregation to monthly time steps
-- `TimeYear`: aggregation to yearly time steps
-- `TimeMean`: aggregation to mean over all time steps
+### Period methods
 
-### Anomalies
-- `TimeHourAnomaly`: aggregation to hourly anomalies
-- `TimeDayAnomaly`: aggregation to daily anomalies
-- `TimeMonthAnomaly`: aggregation to monthly anomalies
-- `TimeYearAnomaly`: aggregation to yearly anomalies
-- `TimeDayMSCAnomaly`: aggregation to daily MSC anomalies
-- `TimeMonthMSCAnomaly`: aggregation to monthly MSC anomalies
+The period methods are the main API. Each takes any count of any unit, and the spec
+string gives the same method.
 
-### Climatological Statistics
-- `TimeDayMSC`: aggregation to daily MSC
-- `TimeMonthMSC`: aggregation to monthly MSC
-- `TimeDayIAV`: aggregation to daily IAV
-- `TimeMonthIAV`: aggregation to monthly IAV
-- `TimeHourDayMean`: aggregation to mean of hourly data over days
+| Method | Spec | Output |
+|---|---|---|
+| `TimePeriodSample(period; origin=:calendar)` | `"<n>-<unit>"` | one value per n-unit bin |
+| `TimePeriodAnomaly(period; origin=:calendar)` | `"<n>-<unit>_anomaly"` | n-unit bins minus the mean of the record |
+| `TimePeriodMSC(period, cycle=Year(1))` | `"<n>-<unit>_msc[_<cycle>]"` | mean seasonal or diurnal cycle of n-unit bins |
+| `TimePeriodMSCAnomaly(period, cycle=Year(1))` | `"<n>-<unit>_msc_anomaly[_<cycle>]"` | mean cycle minus the mean of the record |
+| `TimePeriodIAV(period, cycle=Year(1))` | `"<n>-<unit>_iav[_<cycle>]"` | n-unit bins minus their mean cycle |
+| `TimeMean()` | `"mean"` | one mean over the whole record |
 
-### Time Selection
-- `TimeAllYears`: aggregation/slicing to include all years
-- `TimeFirstYear`: aggregation/slicing of the first year
-- `TimeRandomYear`: aggregation/slicing of a random year
-- `TimeShuffleYears`: aggregation/slicing/selection of shuffled years
+### Calendar methods
+
+The calendar methods are legacy aliases kept for backward compatibility. Each one is
+the period method in the same row, and gives the same samplers, values and labels,
+including for `skip_sampling`. They resolve from their snake case names, which
+existing configurations use. New code should use the period methods.
+
+| Calendar method | Name | Period method | Spec |
+|---|---|---|---|
+| `TimeHour()` | `"hour"` | `TimePeriodSample(Hour(1))` | `"1-hour"` |
+| `TimeDay()` | `"day"` | `TimePeriodSample(Day(1))` | `"1-day"` |
+| `TimeMonth()` | `"month"` | `TimePeriodSample(Month(1))` | `"1-month"` |
+| `TimeYear()` | `"year"` | `TimePeriodSample(Year(1))` | `"1-year"` |
+| `TimeHourAnomaly()` | `"hour_anomaly"` | `TimePeriodAnomaly(Hour(1))` | `"1-hour_anomaly"` |
+| `TimeDayAnomaly()` | `"day_anomaly"` | `TimePeriodAnomaly(Day(1))` | `"1-day_anomaly"` |
+| `TimeMonthAnomaly()` | `"month_anomaly"` | `TimePeriodAnomaly(Month(1))` | `"1-month_anomaly"` |
+| `TimeYearAnomaly()` | `"year_anomaly"` | `TimePeriodAnomaly(Year(1))` | `"1-year_anomaly"` |
+| `TimeHourDayMean()` | `"hour_day_mean"` | `TimePeriodMSC(Hour(1), Day(1))` | `"1-hour_msc_day"` |
+| `TimeDayMSC()` | `"day_MSC"` | `TimePeriodMSC(Day(1))` | `"1-day_msc"` |
+| `TimeMonthMSC()` | `"month_MSC"` | `TimePeriodMSC(Month(1))` | `"1-month_msc"` |
+| `TimeDayMSCAnomaly()` | `"day_MSC_anomaly"` | `TimePeriodMSCAnomaly(Day(1))` | `"1-day_msc_anomaly"` |
+| `TimeMonthMSCAnomaly()` | `"month_MSC_anomaly"` | `TimePeriodMSCAnomaly(Month(1))` | `"1-month_msc_anomaly"` |
+| `TimeDayIAV()` | `"day_IAV"` | `TimePeriodIAV(Day(1))` | `"1-day_iav"` |
+| `TimeMonthIAV()` | `"month_IAV"` | `TimePeriodIAV(Month(1))` | `"1-month_iav"` |
+
+`examples/calendar_vs_nstep.jl` checks every row of this table and plots the outputs
+of both methods.
+
+### Time selection
+
+The selection methods pick time steps instead of resampling them, so they have no
+period equivalent and are not accepted by `TimeResampler`. Apply them with
+`do_time_sampling(dat, samplers, TimeIndexed())`, which selects along the first
+dimension.
+
+| Method | Name | Selects |
+|---|---|---|
+| `TimeAllYears()` | `"all_years"` | every time step |
+| `TimeFirstYear()` | `"first_year"` | the time steps of the first year |
+| `TimeRandomYear()` | `"random_year"` | the time steps of one random year |
+| `TimeShuffleYears()` | `"shuffle_years"` | whole years in a random order |
 
 ## Documentation
 

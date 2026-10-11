@@ -1,6 +1,6 @@
 # TimeSamplers Types
 
-This page documents all types defined in TimeSamplers.jl, generated using [`get_type_docstring`](https://landecosystems.github.io/OmniTools.jl/dev/api/ForDocStrings/#get_type_docstring) from OmniTools.jl.
+This page documents all types defined in TimeSamplers.jl, generated using [`get_type_docstring`](https://landecosystems.github.io/OmniTools.jl/dev/api/ForDocStrings.html#OmniTools.ForDocStrings.get_type_docstring) from OmniTools.jl.
 
 ```@meta
 CurrentModule = TimeSamplers
@@ -36,6 +36,10 @@ TimeSamplerMethod <: Any
 
 define a type for temporal sampling/aggregation of an array
 
+```@docs
+TimeSample
+```
+
 ```
 TimeSample <: TimeSampler <: Any
 ```
@@ -43,6 +47,14 @@ TimeSample <: TimeSampler <: Any
 `TimeSampleViewInstance`
 
 view of a TimeSample
+
+```@docs
+TimeSampleViewInstance
+```
+
+```@docs
+TimeResampler
+```
 
 ```
 TimeSampleViewInstance <: AbstractArray <: Any
@@ -116,6 +128,83 @@ aggregation to yearly time steps
 
 ```
 TimeYear <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+## Period Based
+
+```@docs
+TimePeriodAnomaly
+```
+
+```
+TimePeriodAnomaly <: TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+---
+
+```@docs
+TimePeriodIAV
+```
+
+```
+TimePeriodIAV <: TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+---
+
+```@docs
+TimePeriodMSC
+```
+
+```
+TimePeriodMSC <: TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+---
+
+```@docs
+TimePeriodMSCAnomaly
+```
+
+```
+TimePeriodMSCAnomaly <: TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+---
+
+`TimePeriodMethod`
+
+
+Abstract type for time sampling methods defined by an n-unit period
+
+
+-----
+
+# Extended help
+
+## Available methods/subtypes:
+
+ -  `TimePeriodAnomaly`: aggregation to anomalies of n-unit bins 
+ -  `TimePeriodIAV`: aggregation to the inter-annual variability of n-unit bins 
+ -  `TimePeriodMSC`: aggregation to the mean seasonal or diurnal cycle of n-unit bins 
+ -  `TimePeriodMSCAnomaly`: aggregation to anomalies of the mean cycle of n-unit bins 
+ -  `TimePeriodSample`: aggregation to bins of an n-unit period 
+
+
+
+
+```
+TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
+```
+
+---
+
+```@docs
+TimePeriodSample
+```
+
+```
+TimePeriodSample <: TimePeriodMethod <: TimeSamplerMethod <: TimeSampler <: Any
 ```
 
 ## Anomalies
