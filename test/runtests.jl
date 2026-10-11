@@ -251,7 +251,8 @@ end
         @test get_TimeSampler("8-day_msc_anomaly") == TimePeriodMSCAnomaly(Day(8))
         @test get_TimeSampler("30-min-msc-anomaly-day") == TimePeriodMSCAnomaly(Minute(30), Day(1))
         @test get_TimeSampler("30-min_iav_day") == TimePeriodIAV(Minute(30), Day(1))
-        @test get_TimeSampler(:day) == TimePeriodSample(Day(1))
+        @test get_TimeSampler(:day) == TimeDay()
+        @test get_TimeSampler(:day; origin=:start) == TimePeriodSample(Day(1); origin=:start)
         @test get_TimeSampler("mean") == TimeMean()
         @test get_TimeSampler("3h") == TimePeriodSample(Hour(3))
         @test get_TimeSampler("3hour_msc_day") == TimePeriodMSC(Hour(3), Day(1))
@@ -262,6 +263,19 @@ end
         @test get_TimeSampler("TimeDayMSC") == TimeDayMSC()
         @test_throws ErrorException get_TimeSampler("3-hour_foo")
         @test_throws ErrorException get_TimeSampler("3-hour_anomaly_day")
+    end
+
+
+    @testset "snake case names" begin
+        @test get_TimeSampler("first_year") == TimeFirstYear()
+        @test get_TimeSampler("all_years") == TimeAllYears()
+        @test get_TimeSampler("day_MSC") == TimeDayMSC()
+        @test get_TimeSampler("hour_anomaly") == TimeHourAnomaly()
+        @test get_TimeSampler("hour_day_mean") == TimeHourDayMean()
+        @test get_TimeSampler("TimeMonthIAV") == TimeMonthIAV()
+        # names that are not method types are read as period specs
+        @test get_TimeSampler("8-day_msc") == TimePeriodMSC(Day(8))
+        @test get_TimeSampler("day_msc") == TimePeriodMSC(Day(1))
     end
 
     @testset "TimeMean" begin

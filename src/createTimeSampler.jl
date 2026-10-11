@@ -129,7 +129,11 @@ Creates and returns a time aggregator instance based on the provided sampling/ag
 - `origin`: bin origin used when `aggr` is a period spec, see `TimePeriodSample`
 - `cycle`: cycle used when `aggr` is a period spec of kind msc, msc_anomaly or iav
 
-A name that is not a method type is read as a period spec with the grammar
+A snake case name such as `"first_year"` or `"day_MSC"` resolves to the method
+type `TimeFirstYear` or `TimeDayMSC`, with the same rule as `to_uppercase_first`
+in OmniTools. This only applies when `origin` and `cycle` keep their defaults.
+
+Any other name is read as a period spec with the grammar
 `<n>-<unit>[_<kind>[_<cycle>]]`. The separator may be `_` or `-`, and the kind is one
 of `anomaly`, `msc`, `msc_anomaly` or `iav`. The count may also be joined to the
 unit, as in `"3h"`. The spec `mean` gives `TimeMean()`.
@@ -167,14 +171,31 @@ function get_TimeSampler(aggr::Symbol; kwargs...)
 end
 
 function get_TimeSampler(aggr::String; origin=:calendar, cycle=Year(1))
-    aggr_sym = Symbol(aggr)
-    if isdefined(TimeSamplers, aggr_sym)
-        aggr_type = getfield(TimeSamplers, aggr_sym)
-        if aggr_type isa DataType && aggr_type <: TimeSamplerMethod && isconcretetype(aggr_type)
-            return aggr_type()
-        end
+    method = getTimeSamplerMethodByName(aggr)
+    isnothing(method) || return method
+    # snake case names only map to the calendar methods, which have no origin or
+    # cycle, so other keywords are only honoured by a period spec
+    if origin === :calendar && cycle == Year(1)
+        method = getTimeSamplerMethodByName("Time" * join(uppercasefirst.(split(aggr, "_"))))
+        isnothing(method) || return method
     end
     return getTimePeriodMethodFromSpec(aggr; origin=origin, cycle=cycle)
+end
+
+"""
+    getTimeSamplerMethodByName(type_name)
+
+An instance of the method type named `type_name`, or `nothing` when no concrete
+method type has that name.
+"""
+function getTimeSamplerMethodByName(type_name)
+    type_sym = Symbol(type_name)
+    isdefined(TimeSamplers, type_sym) || return nothing
+    method_type = getfield(TimeSamplers, type_sym)
+    if method_type isa DataType && method_type <: TimeSamplerMethod && isconcretetype(method_type)
+        return method_type()
+    end
+    return nothing
 end
 
 
