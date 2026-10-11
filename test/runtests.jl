@@ -278,6 +278,75 @@ end
         @test get_TimeSampler("day_msc") == TimePeriodMSC(Day(1))
     end
 
+    @testset "time_sampling_type, time_sampling_period, format_temporal_resolution" begin
+        @test time_sampling_type(TimeDay()) == TimeNoDiff()
+        @test time_sampling_type("hour_anomaly") == TimeDiff()
+        @test time_sampling_type("30-min_iav_day") == TimeDiff()
+        @test time_sampling_type("3-hour-anomaly") == TimeDiff()
+        @test time_sampling_type("day_MSC") == TimeNoDiff()
+        @test time_sampling_type(TimeMean()) == TimeNoDiff()
+        for name in ("first_year", "all_years", "random_year", "shuffle_years")
+            @test time_sampling_type(name) == TimeIndexed()
+        end
+
+        @test time_sampling_period(TimeDay()) == Day(1)
+        @test time_sampling_period("hour_anomaly") == Hour(1)
+        @test time_sampling_period("month_iav") == Month(1)
+        @test time_sampling_period("3h_msc_day") == Hour(3)
+        @test time_sampling_period("hour_day_mean") == Hour(1)
+        @test time_sampling_period(TimeMean()) === nothing
+        @test time_sampling_period("first_year") === nothing
+
+        @test format_temporal_resolution(Day(1)) == "day"
+        @test format_temporal_resolution(Hour(6)) == "6-hour"
+        @test format_temporal_resolution(Minute(30)) == "30-minute"
+        @test format_temporal_resolution("3h") == "3-hour"
+        @test format_temporal_resolution(:mon) == "month"
+        @test parse_temporal_resolution(format_temporal_resolution(Hour(6))) == (6, "hour")
+    end
+
+    @testset "TimeResampler" begin
+        hourly = collect(DateTime(2001, 1, 1):Hour(1):DateTime(2002, 12, 31, 23))
+        realizations = [rand(length(hourly), 3) for _ in 1:3]
+        for spec in ("6-hour", "8-day_iav", "3-hour_msc_day", "month_anomaly", "day_MSC")
+            rs = TimeResampler(hourly, spec)
+            @test rs isa TimeResampler
+            @test rs.samplers isa Tuple
+            @test time_resample_dates(rs) == time_resample_dates(hourly, spec)
+            for x in realizations
+                @test time_resample(x, rs) ≈ time_resample(x, hourly, spec)
+            end
+        end
+
+        # the combine step comes from the method
+        @test TimeResampler(hourly, "8-day_iav").combine == TimeDiff()
+        @test TimeResampler(hourly, "day").combine == TimeNoDiff()
+
+        # keywords and dimensions
+        x = realizations[1]
+        rs_sum = TimeResampler(hourly, :day; sampler_func=sum)
+        @test time_resample(x, rs_sum) ≈ time_resample(x, hourly, :day; sampler_func=sum)
+        @test time_resample(permutedims(x), rs_sum; dim=2) ≈ permutedims(time_resample(x, rs_sum))
+
+        # a skipped first sampler returns the data as it is, of any length
+        rs_skip = TimeResampler(hourly, "hour"; skip_sampling=true)
+        @test first(rs_skip.samplers) === nothing
+        @test time_resample(x, rs_skip) === x
+        @test time_resample(x[1:10, :], rs_skip) == x[1:10, :]
+        rs_skip_anomaly = TimeResampler(hourly, "hour_anomaly"; skip_sampling=true)
+        @test time_resample(x, rs_skip_anomaly) ≈ x .- mean(x; dims=1)
+
+        # selections do not resample
+        @test_throws ErrorException TimeResampler(hourly, "first_year")
+        @test_throws ErrorException TimeResampler(hourly, TimeAllYears())
+
+        # applying a prebuilt resampler only allocates about the output
+        rs = TimeResampler(hourly, "month")
+        time_resample(x, rs)
+        out_bytes = sizeof(time_resample(x, rs))
+        @test (@allocated time_resample(x, rs)) < 2 * out_bytes + 4096
+    end
+
     @testset "TimeMean" begin
         dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 10))
         mat = rand(length(dates), 3)

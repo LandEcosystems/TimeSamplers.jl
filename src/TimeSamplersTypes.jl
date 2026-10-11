@@ -38,6 +38,7 @@ export TimePeriodAnomaly
 export TimePeriodMSC
 export TimePeriodMSCAnomaly
 export TimePeriodIAV
+export TimeResampler
 
 
 # ------------------------- time aggregator ---------------
@@ -274,3 +275,25 @@ struct TimePeriodIAV{P<:Dates.Period,C<:Dates.Period} <: TimePeriodMethod
     end
 end
 purpose(::Type{TimePeriodIAV}) = "aggregation to the inter-annual variability of n-unit bins"
+
+# ------------------------- prebuilt resampling ---------------
+"""
+    TimeResampler{M, S, C, O}
+
+A time sampling method with its samplers built once for a time axis. Build it with
+`TimeResampler(date_vector, period; ...)` and apply it to any number of arrays on
+that axis with `time_resample(dat, rs)`.
+
+# Fields:
+- `method::M`: the resolved time sampling method
+- `samplers::S`: a tuple of `TimeSample`, where the first is `nothing` when skipped
+- `combine::C`: `TimeNoDiff()` or `TimeDiff()`, how the samplers are combined
+- `out_dates::O`: one label per output slice, as `time_resample_dates` gives
+"""
+struct TimeResampler{M<:TimeSamplerMethod,S<:Tuple,C<:TimeSamplerMethod,O}
+    method::M
+    samplers::S
+    combine::C
+    out_dates::O
+end
+purpose(::Type{TimeResampler}) = "a time sampling method with samplers built once for a time axis, to resample many arrays on it"

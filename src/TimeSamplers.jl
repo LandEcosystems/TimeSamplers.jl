@@ -110,7 +110,7 @@ daily_sum = time_resample(data, hourly, :day; sampler_func=sum)
 seasonal_cycle = time_resample(data, hourly, "3-hour_msc")
 diurnal_cycle = time_resample(data, hourly, "3-hour_msc_day")
 iav = time_resample(data, hourly, "8-day_iav")
-labels = time_resample_dates(hourly, "6-hour")
+out_dates = time_resample_dates(hourly, "6-hour")
 ```
 
 # Notes

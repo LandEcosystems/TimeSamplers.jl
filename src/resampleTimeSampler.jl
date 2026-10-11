@@ -1,5 +1,8 @@
 export parse_temporal_resolution
 export get_time_period
+export format_temporal_resolution
+export time_sampling_type
+export time_sampling_period
 
 """
 Maps unit names and their aliases to `Dates` period types. Lookup is
@@ -506,17 +509,99 @@ getTimePeriodMethod(::TimeMonthMSCAnomaly) = TimePeriodMSCAnomaly(Month(1))
 getTimePeriodMethod(::TimeDayIAV) = TimePeriodIAV(Day(1))
 getTimePeriodMethod(::TimeMonthIAV) = TimePeriodIAV(Month(1))
 getTimePeriodMethod(::TimeHourDayMean) = TimePeriodMSC(Hour(1), Day(1))
-getTimePeriodMethod(t_step::Union{TimeMean,TimeAllYears}) = t_step
+getTimePeriodMethod(t_step::TimeMean) = t_step
 getTimePeriodMethod(t_step) = error("$(typeof(t_step)) is not a period based time sampling method.")
 
 """
-    getTimeSamplingDiffType(method)
+    time_sampling_type(method)
 
-The sampling type to pass to `do_time_sampling` for a method. Methods that return a
-second sampler to subtract give `TimeDiff()`, all others give `TimeNoDiff()`.
+How the samplers of a method are combined, as the type to pass to
+`do_time_sampling`:
+- `TimeNoDiff()` applies the first sampler, as for bins and mean cycles
+- `TimeDiff()` subtracts the second sampler from the first, as for anomalies and
+  IAV
+- `TimeIndexed()` selects the time steps of the first sampler, as for
+  `TimeFirstYear`, `TimeAllYears`, `TimeRandomYear` and `TimeShuffleYears`
+
+`method` can also be a name or spec that `get_TimeSampler` accepts.
+
+# Examples
+```jldoctest
+julia> using TimeSamplers
+
+julia> time_sampling_type("8-day_iav")
+TimeDiff()
+
+julia> time_sampling_type("first_year")
+TimeIndexed()
+```
 """
-function getTimeSamplingDiffType end
+function time_sampling_type end
 
-getTimeSamplingDiffType(::Union{TimePeriodSample,TimePeriodMSC,TimeMean,TimeAllYears}) = TimeNoDiff()
-getTimeSamplingDiffType(::Union{TimePeriodAnomaly,TimePeriodMSCAnomaly,TimePeriodIAV}) = TimeDiff()
-getTimeSamplingDiffType(t_step::TimeSamplerMethod) = getTimeSamplingDiffType(getTimePeriodMethod(t_step))
+time_sampling_type(::Union{TimePeriodSample,TimePeriodMSC,TimeMean}) = TimeNoDiff()
+time_sampling_type(::Union{TimePeriodAnomaly,TimePeriodMSCAnomaly,TimePeriodIAV}) = TimeDiff()
+time_sampling_type(::Union{TimeFirstYear,TimeAllYears,TimeRandomYear,TimeShuffleYears}) = TimeIndexed()
+time_sampling_type(t_step::TimeSamplerMethod) = time_sampling_type(getTimePeriodMethod(t_step))
+time_sampling_type(spec::Union{AbstractString,Symbol}) = time_sampling_type(get_TimeSampler(String(spec)))
+
+"""
+    time_sampling_period(method)
+
+The length of the bins of a method as a `Dates.Period`, or `nothing` for methods
+without bins such as `TimeMean` or `TimeFirstYear`. For a mean cycle this is the
+length of the bins inside the cycle, not the cycle.
+
+`method` can also be a name or spec that `get_TimeSampler` accepts.
+
+# Examples
+```jldoctest
+julia> using TimeSamplers
+
+julia> time_sampling_period("3-hour_msc_day")
+3 hours
+
+julia> time_sampling_period("day_MSC")
+1 day
+
+julia> time_sampling_period("all_years") === nothing
+true
+```
+"""
+function time_sampling_period end
+
+time_sampling_period(t_step::TimePeriodMethod) = t_step.period
+time_sampling_period(t_step::Union{TimeSkippableCalendarMethod,TimeNonSkippableCalendarMethod}) = time_sampling_period(getTimePeriodMethod(t_step))
+time_sampling_period(::TimeSamplerMethod) = nothing
+time_sampling_period(spec::Union{AbstractString,Symbol}) = time_sampling_period(get_TimeSampler(String(spec)))
+
+"""
+    format_temporal_resolution(period)
+
+The canonical resolution string of a period: the bare unit for a count of one,
+otherwise `"<n>-<unit>"`. The unit is the full lowercase name, so the result can be
+parsed with `parse_temporal_resolution` by other packages without aliases.
+
+# Arguments:
+- `period`: a `Dates.Period`, or a resolution string such as `"3h"` that is
+  first converted with `get_time_period`
+
+# Examples
+```jldoctest
+julia> using TimeSamplers, Dates
+
+julia> format_temporal_resolution(Hour(3))
+"3-hour"
+
+julia> format_temporal_resolution("d")
+"day"
+```
+"""
+function format_temporal_resolution end
+
+function format_temporal_resolution(period::Dates.Period)
+    unit = lowercase(string(nameof(typeof(period))))
+    n = Dates.value(period)
+    return n == 1 ? unit : "$(n)-$(unit)"
+end
+
+format_temporal_resolution(spec::Union{AbstractString,Symbol}) = format_temporal_resolution(get_time_period(spec))
