@@ -65,6 +65,35 @@ end
         @test_throws ErrorException do_time_sampling([data; 6.0], all_years, TimeIndexed())
     end
 
+    @testset "selections with TimeIndexed" begin
+        dates = collect(Date(2000, 1, 1):Day(1):Date(2002, 12, 31))
+        years = year.(dates)
+        data = collect(1.0:length(dates))
+        mat = hcat(data, 2 .* data)
+        year_block(y) = data[years .== y]
+        select(x, method) = do_time_sampling(x, create_TimeSampler(dates, method), TimeIndexed())
+
+        @test select(data, TimeAllYears()) == data
+        @test select(mat, TimeAllYears()) == mat
+        @test select(data, TimeFirstYear()) == year_block(2000)
+        @test select(mat, TimeFirstYear()) == mat[years .== 2000, :]
+
+        random_year = select(data, TimeRandomYear())
+        @test any(y -> random_year == year_block(y), 2000:2002)
+
+        # whole years in a shuffled order, each kept in time order
+        shuffled = select(data, TimeShuffleYears())
+        @test sort(shuffled) == data
+        @test shuffled in [reduce(vcat, year_block.(p)) for p in
+            ([2000, 2001, 2002], [2000, 2002, 2001], [2001, 2000, 2002],
+             [2001, 2002, 2000], [2002, 2000, 2001], [2002, 2001, 2000])]
+        shuffled_mat = select(mat, TimeShuffleYears())
+        @test size(shuffled_mat) == size(mat)
+        @test shuffled_mat[:, 2] == 2 .* shuffled_mat[:, 1]
+
+        @test_throws ErrorException select(data[1:10], TimeFirstYear())
+    end
+
     @testset "parse_temporal_resolution" begin
         @test parse_temporal_resolution("day") == (1, "day")
         @test parse_temporal_resolution("hour") == (1, "hour")

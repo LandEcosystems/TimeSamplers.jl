@@ -97,7 +97,10 @@ a temporal sampling/aggregation function to aggregate the data using a vector of
 - `sampling/aggregation_type`: a type defining the type of sampling/aggregation to be done as follows:
     - `::TimeNoDiff`: a type defining that the aggregator does not require removing/reducing values from original time series
     - `::TimeDiff`: a type defining that the aggregator requires removing/reducing values from original time series. First aggregator aggregates the main time series, second aggregator aggregates to the time series to be removed.
-    - `::TimeIndexed`: a type defining that the aggregator requires indexing the original time series
+    - `::TimeIndexed`: a type defining that the aggregator requires indexing the
+      original time series. The time steps of the first aggregator are selected
+      along the first dimension in their order, so shuffled years come out in the
+      shuffled order.
 
 If `sampling/aggregation_type` is omitted, it defaults to `TimeNoDiff()`.
 
@@ -156,7 +159,9 @@ end
 function do_time_sampling(dat, time_samplers, ::TimeIndexed)
     time_sampler = first(time_samplers)
     checkTimeLength(dat, time_sampler.n_time, 1)
-    return dat[time_sampler.indices...]
+    # the indices are flat for one year and one group per year for shuffled years
+    time_inds = reduce(vcat, time_sampler.indices)
+    return dat[time_inds, ntuple(_ -> Colon(), ndims(dat) - 1)...]
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeNoDiff)
