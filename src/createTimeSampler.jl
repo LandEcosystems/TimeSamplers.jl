@@ -75,20 +75,15 @@ function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip
     return [all_agg,]
 end
 
-# Calendar methods are built on the generic period methods. Hourly and daily methods
-# honour skip_sampling, while monthly and yearly methods have always ignored it.
-const TimeSkippableCalendarMethod = Union{TimeHour,TimeHourAnomaly,TimeHourDayMean,
+# Calendar methods are built on the generic period methods, so they behave exactly
+# like their n-step equivalents, including for skip_sampling.
+const TimeCalendarMethod = Union{TimeHour,TimeHourAnomaly,TimeHourDayMean,
     TimeDay,TimeDayAnomaly,TimeDayIAV,TimeDayMSC,TimeDayMSCAnomaly,
-    TimeMonthMSC,TimeMonthMSCAnomaly}
-const TimeNonSkippableCalendarMethod = Union{TimeMonth,TimeMonthAnomaly,TimeMonthIAV,
+    TimeMonth,TimeMonthAnomaly,TimeMonthIAV,TimeMonthMSC,TimeMonthMSCAnomaly,
     TimeYear,TimeYearAnomaly}
 
-function create_TimeSampler(date_vector, t_step::TimeSkippableCalendarMethod, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, t_step::TimeCalendarMethod, sampler_func=mean, skip_sampling=false)
     return create_TimeSampler(date_vector, getTimePeriodMethod(t_step), sampler_func, skip_sampling)
-end
-
-function create_TimeSampler(date_vector, t_step::TimeNonSkippableCalendarMethod, sampler_func=mean, skip_sampling=false)
-    return getPeriodSamplers(date_vector, getTimePeriodMethod(t_step), sampler_func)
 end
 
 

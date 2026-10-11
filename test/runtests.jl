@@ -429,11 +429,21 @@ end
         daily_dt = collect(DateTime(2000, 1, 1):Day(1):DateTime(2000, 1, 5))
         @test length(create_TimeSampler(daily_dt, TimeHour())[1].indices) == 5
 
-        # skip_sampling keeps its previous meaning per method
+        # skip_sampling skips the first sampler of every calendar method exactly as for
+        # its n-step equivalent, and mean cycles are never skipped
         @test create_TimeSampler(daily, TimeDay(), mean, true) == [nothing]
-        @test create_TimeSampler(daily, TimeMonth(), mean, true)[1] isa TimeSample
-        @test create_TimeSampler(daily, TimeYear(), mean, true)[1] isa TimeSample
-        @test create_TimeSampler(daily, TimeMonthIAV(), mean, true)[1] isa TimeSample
+        @test create_TimeSampler(daily, TimeMonth(), mean, true) == [nothing]
+        @test create_TimeSampler(daily, TimeYear(), mean, true) == [nothing]
+        @test create_TimeSampler(daily, TimeMonthIAV(), mean, true)[1] === nothing
         @test create_TimeSampler(daily, TimeDayAnomaly(), mean, true)[1] === nothing
+        @test create_TimeSampler(daily, TimeMonthMSC(), mean, true)[1] isa TimeSample
+        skipped(m) = [isnothing(s) ? nothing : s.indices for s in create_TimeSampler(daily, m, mean, true)]
+        for (calendar, nstep) in ((TimeMonth(), TimePeriodSample(Month(1))),
+                                  (TimeMonthAnomaly(), TimePeriodAnomaly(Month(1))),
+                                  (TimeMonthIAV(), TimePeriodIAV(Month(1))),
+                                  (TimeYear(), TimePeriodSample(Year(1))),
+                                  (TimeYearAnomaly(), TimePeriodAnomaly(Year(1))))
+            @test skipped(calendar) == skipped(nstep)
+        end
     end
 end

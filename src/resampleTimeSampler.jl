@@ -570,7 +570,7 @@ true
 function time_sampling_period end
 
 time_sampling_period(t_step::TimePeriodMethod) = t_step.period
-time_sampling_period(t_step::Union{TimeSkippableCalendarMethod,TimeNonSkippableCalendarMethod}) = time_sampling_period(getTimePeriodMethod(t_step))
+time_sampling_period(t_step::TimeCalendarMethod) = time_sampling_period(getTimePeriodMethod(t_step))
 time_sampling_period(::TimeSamplerMethod) = nothing
 time_sampling_period(spec::Union{AbstractString,Symbol}) = time_sampling_period(get_TimeSampler(String(spec)))
 
