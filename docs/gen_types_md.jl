@@ -78,6 +78,7 @@ open(types_path, "w") do io
     purpose_text = time_sampler_purpose(TimeSampleViewInstance)
     write(io, "$(purpose_text)\n\n")
     write(io, "```@docs\nTimeSampleViewInstance\n```\n\n")
+    write(io, "```@docs\nTimeResampler\n```\n\n")
     instance_docstr = get_type_docstring(TimeSampleViewInstance, purpose_function=time_sampler_purpose)
     hierarchy_match = match(r"```([^`]+)```", instance_docstr)
     if hierarchy_match !== nothing

@@ -88,6 +88,25 @@ restart at the start of each cycle, and the MSC pools all timesteps at a cycle p
 across all cycles. In a yearly cycle, days are matched by calendar date, so Mar 1 is always
 averaged with Mar 1, and Feb 29 only has values from leap years.
 
+## Build once, apply many times
+
+When many arrays share one time axis, such as the model realizations of an
+optimization, build a `TimeResampler` once and reuse it. Applying it only allocates
+the output.
+
+```julia
+rs = TimeResampler(hourly, "8-day_iav"; sampler_func=sum)
+for realization in realizations
+    iav = time_resample(realization, rs)
+end
+time_resample_dates(rs)                                  # dates of the output
+```
+
+`time_sampling_type(rs.method)` tells how the samplers are combined, and
+`time_sampling_period("day_MSC")` gives the length of the bins, here one day.
+Snake case names such as `"first_year"` or `"day_MSC"` resolve to the method types
+`TimeFirstYear` and `TimeDayMSC`.
+
 ## Available Time Sampling Methods
 
 ### Basic Aggregation

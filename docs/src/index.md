@@ -53,6 +53,25 @@ The time dimension is the first by default and can be set with `dim`. Anomaly, M
 anomaly and IAV targets subtract their reference automatically, so no `TimeDiff()` is
 needed.
 
+### Build once, apply many times
+
+When many arrays share one time axis, such as the model realizations of an
+optimization, build a `TimeResampler` once and reuse it. Applying it only allocates
+the output.
+
+```julia
+rs = TimeResampler(hourly, "8-day_iav"; sampler_func=sum)
+for realization in realizations
+    iav = time_resample(realization, rs)
+end
+time_resample_dates(rs)                                  # dates of the output
+```
+
+`time_sampling_type(rs.method)` tells how the samplers are combined, and
+`time_sampling_period("day_MSC")` gives the length of the bins, here one day.
+Snake case names such as `"first_year"` or `"day_MSC"` resolve to the method types
+`TimeFirstYear` and `TimeDayMSC`.
+
 ### Period specs
 
 A period spec has the form `<n>-<unit>[_<kind>[_<cycle>]]`, where the separator may be

@@ -20,12 +20,12 @@ function create_TimeSampler(date_vector, t_step::Union{String, Symbol}, sampler_
 end
 
 function create_TimeSampler(date_vector, ::TimeMean, sampler_func=mean, skip_sampling=false)
-    mean_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func)
+    mean_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [mean_agg,]
 end
 
 function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip_sampling=false)
-    all_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func)
+    all_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [all_agg,]
 end
 
@@ -41,7 +41,7 @@ function create_TimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, ski
     years = year.(date_vector)
     first_year = minimum(years)
     year_inds = getIndexForSelectedYear(years, first_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -49,7 +49,7 @@ function create_TimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, sk
     years = year.(date_vector)
     random_year = rand(unique(years))
     year_inds = getIndexForSelectedYear(years, random_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -58,7 +58,7 @@ function create_TimeSampler(date_vector, ::TimeShuffleYears, sampler_func=mean, 
     unique_years = unique(years)
     shuffled_unique_years = sample(unique_years, length(unique_years), replace=false)
     year_inds = getIndexForSelectedYear.(Ref(years), shuffled_unique_years)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -85,7 +85,9 @@ function do_time_sampling(dat, time_samplers)
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeIndexed)
-    return dat[first(time_samplers).indices...]
+    time_sampler = first(time_samplers)
+    checkTimeLength(dat, time_sampler.n_time, 1)
+    return dat[time_sampler.indices...]
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeNoDiff)
@@ -96,6 +98,22 @@ function do_time_sampling(dat, time_samplers, ::TimeDiff)
     dat_samp = time_sampling(dat, first(time_samplers))
     dat_samp_to_remove = time_sampling(dat, last(time_samplers))
     return dat_samp .- dat_samp_to_remove
+end
+```
+
+:::
+
+```@docs
+format_temporal_resolution
+```
+
+::: details Code
+
+```julia
+function format_temporal_resolution(period::Dates.Period)
+    unit = lowercase(string(nameof(typeof(period))))
+    n = Dates.value(period)
+    return n == 1 ? unit : "$(n)-$(unit)"
 end
 ```
 
@@ -113,12 +131,13 @@ function get_TimeSampler(aggr::Symbol; kwargs...)
 end
 
 function get_TimeSampler(aggr::String; origin=:calendar, cycle=Year(1))
-    aggr_sym = Symbol(aggr)
-    if isdefined(TimeSamplers, aggr_sym)
-        aggr_type = getfield(TimeSamplers, aggr_sym)
-        if aggr_type isa DataType && aggr_type <: TimeSamplerMethod && isconcretetype(aggr_type)
-            return aggr_type()
-        end
+    method = getTimeSamplerMethodByName(aggr)
+    isnothing(method) || return method
+    # snake case names only map to the calendar methods, which have no origin or
+    # cycle, so other keywords are only honoured by a period spec
+    if origin === :calendar && cycle == Year(1)
+        method = getTimeSamplerMethodByName("Time" * join(uppercasefirst.(split(aggr, "_"))))
+        isnothing(method) || return method
     end
     return getTimePeriodMethodFromSpec(aggr; origin=origin, cycle=cycle)
 end
@@ -193,12 +212,13 @@ time_resample
 
 ```julia
 function time_resample(dat, date_vector, period; sampler_func=mean, dim=1, origin=:calendar, cycle=Year(1))
-    if size(dat, dim) != length(date_vector)
-        error("size of data along dimension $(dim) is $(size(dat, dim)), but date_vector has $(length(date_vector)) dates.")
-    end
-    t_step = toTimePeriodMethod(period; origin=origin, cycle=cycle)
-    time_samplers = create_TimeSampler(date_vector, t_step, sampler_func)
-    return doTimeResample(dat, time_samplers, getTimeSamplingDiffType(t_step), dim)
+    checkTimeLength(dat, length(date_vector), dim)
+    rs = TimeResampler(date_vector, period; sampler_func=sampler_func, origin=origin, cycle=cycle)
+    return time_resample(dat, rs; dim=dim)
+end
+
+function time_resample(dat, rs::TimeResampler; dim=1)
+    return doTimeResample(dat, rs.samplers, rs.combine, dim)
 end
 ```
 
@@ -242,4 +262,12 @@ end
 ```
 
 :::
+
+```@docs
+time_sampling_period
+```
+
+```@docs
+time_sampling_type
+```
 

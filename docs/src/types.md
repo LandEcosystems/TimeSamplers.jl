@@ -52,6 +52,10 @@ view of a TimeSample
 TimeSampleViewInstance
 ```
 
+```@docs
+TimeResampler
+```
+
 ```
 TimeSampleViewInstance <: AbstractArray <: Any
 ```
