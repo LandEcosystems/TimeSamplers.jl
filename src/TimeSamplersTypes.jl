@@ -217,7 +217,8 @@ purpose(::Type{TimePeriodAnomaly}) = "aggregation to anomalies of n-unit bins"
 Mean cycle of n-unit bins. With the default yearly cycle this is the multi-year
 seasonal cycle, and with `cycle = Day(1)` it is the mean diurnal cycle. The value at
 each cycle position pools all timesteps at that position across all cycles. Bins
-restart at the start of every cycle.
+restart at the start of every cycle, and the output runs from the first position of
+the cycle to the last, whatever the first date of the record.
 
 In a yearly cycle of day or sub-day bins, positions follow calendar dates on a 366
 day leap year calendar. Every date is grouped with the same date in all years, and

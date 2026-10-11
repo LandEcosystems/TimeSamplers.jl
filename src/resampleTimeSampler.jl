@@ -315,16 +315,21 @@ function getPeriodIndices(date_vector, period, origin)
 end
 
 """
-    getIndicesForUniqueKeys(keys)
+    getIndicesForUniqueKeys(keys; sorted = false)
 
-Indices of every unique key, in order of first appearance.
+Indices of every unique key, in order of first appearance or sorted by key.
+
+# Arguments:
+- `keys`: one key per timestep
+- `sorted`: when true, the unique keys are sorted instead of kept in order of first
+  appearance
 
 # Returns:
-- `unique_keys`: the unique keys in order of first appearance
+- `unique_keys`: the unique keys
 - `indices`: a vector with the indices of each unique key
 """
-function getIndicesForUniqueKeys(keys)
-    unique_keys = unique(keys)
+function getIndicesForUniqueKeys(keys; sorted=false)
+    unique_keys = sorted ? sort!(unique(keys)) : unique(keys)
     lookup = Dict(k => i for (i, k) in enumerate(unique_keys))
     indices = [Int[] for _ in unique_keys]
     for (i, k) in enumerate(keys)
@@ -369,7 +374,9 @@ end
 
 function getPeriodSamplers(date_vector, t_step::TimePeriodMSC, sampler_func)
     _, positions = getCyclePositions(date_vector, t_step.period, t_step.cycle; leap_aligned=true)
-    _, position_inds = getIndicesForUniqueKeys(positions)
+    # sorted positions keep the cycle in calendar order even when the record starts
+    # mid cycle or in a year without Feb 29
+    _, position_inds = getIndicesForUniqueKeys(positions; sorted=true)
     msc_inds = [getTimeArray(inds, getTypeOfTimeIndexArray()) for inds in position_inds]
     return [TimeSample(msc_inds, sampler_func, length(date_vector)),]
 end

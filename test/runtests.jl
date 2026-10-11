@@ -239,7 +239,10 @@ end
         msc = time_resample(data, daily, "day_msc")
         positions = time_resample_dates(daily, "day_msc")
         @test length(msc) == 366
-        @test sort(positions) == collect(0:365)
+        # the record starts in a year without Feb 29, which still sits between Feb 28
+        # and Mar 1 in the output
+        @test positions == collect(0:365)
+        @test msc[60] == 60.0
         by_position = Dict(zip(positions, msc))
         # Feb 29 only has the leap year, Mar 1 and Dec 31 have all three years
         @test by_position[59] == 60.0
@@ -258,6 +261,12 @@ end
         @test Date(2003, 2, 26) in bin_starts && Date(2004, 2, 26) in bin_starts
         @test Date(2003, 3, 5) in bin_starts && Date(2004, 3, 5) in bin_starts
         @test length(time_resample(data, daily, "8-day_msc")) == 46
+
+        # a record that starts mid year still gives the cycle from Jan to Dec
+        midyear = collect(Date(2006, 7, 1):Day(1):Date(2009, 6, 30))
+        @test time_resample(Float64.(month.(midyear)), midyear, "month_msc") == collect(1.0:12.0)
+        @test time_resample_dates(midyear, "month_msc") == collect(0:11)
+        @test time_resample_dates(midyear, "day_msc") == collect(0:365)
 
         # the MODIS style :year origin keeps counting plain days from Jan 1
         @test Date(2003, 2, 26) in time_resample_dates(daily, "8-day"; origin=:year)

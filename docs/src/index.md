@@ -108,7 +108,8 @@ types such as `"TimeDayMSC"` resolve to those types as before.
 MSC, MSC anomaly and IAV bins always restart at the start of each cycle. The cycle is
 one year by default and can be set with a spec suffix such as `_day` or with the
 `cycle` keyword. The MSC value at a position pools all timesteps at that position across
-all cycles, and positions are returned in order of first appearance.
+all cycles, and positions are returned in calendar order, from the start of the cycle,
+even when the record starts mid cycle.
 
 In a yearly cycle, days are matched by calendar date on a 366 day calendar. Mar 1 is
 always averaged with Mar 1, Feb 29 only has values from leap years, and daily bins give

@@ -312,7 +312,7 @@ end
 Labels for the output of `time_resample`, one per slice along the time dimension.
 
 For plain, anomaly and IAV targets every label is the start of a bin. For MSC and
-MSC anomaly targets the labels are the zero based cycle positions in output order.
+MSC anomaly targets the labels are the zero based cycle positions in ascending order.
 In a yearly cycle of day or sub-day bins the positions count on a 366 day calendar,
 so position 59 is Feb 29 for daily bins.
 For `TimeMean` the label is the first date. The arguments are the same as for
@@ -350,7 +350,7 @@ end
 
 function getTimeResampleLabels(date_vector, t_step::Union{TimePeriodMSC,TimePeriodMSCAnomaly})
     _, positions = getCyclePositions(date_vector, t_step.period, t_step.cycle; leap_aligned=true)
-    return unique(positions)
+    return sort!(unique(positions))
 end
 
 getTimeResampleLabels(date_vector, ::TimeMean) = [first(date_vector)]
