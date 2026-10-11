@@ -116,48 +116,61 @@ other years.
 
 ## Available Time Sampling Methods
 
-### Basic Aggregation
+### Period methods
 
-- `TimeHour`: Aggregation to hourly time steps
-- `TimeDay`: Aggregation to daily time steps
-- `TimeMonth`: Aggregation to monthly time steps
-- `TimeYear`: Aggregation to yearly time steps
-- `TimeMean`: Aggregation to mean over all time steps
+The period methods are the main API. Each takes any count of any unit, and the spec
+string gives the same method.
 
-### Anomalies
+| Method | Spec | Output |
+|---|---|---|
+| `TimePeriodSample(period; origin=:calendar)` | `"<n>-<unit>"` | one value per n-unit bin |
+| `TimePeriodAnomaly(period; origin=:calendar)` | `"<n>-<unit>_anomaly"` | n-unit bins minus the mean of the record |
+| `TimePeriodMSC(period, cycle=Year(1))` | `"<n>-<unit>_msc[_<cycle>]"` | mean seasonal or diurnal cycle of n-unit bins |
+| `TimePeriodMSCAnomaly(period, cycle=Year(1))` | `"<n>-<unit>_msc_anomaly[_<cycle>]"` | mean cycle minus the mean of the record |
+| `TimePeriodIAV(period, cycle=Year(1))` | `"<n>-<unit>_iav[_<cycle>]"` | n-unit bins minus their mean cycle |
+| `TimeMean()` | `"mean"` | one mean over the whole record |
 
-- `TimeHourAnomaly`: Aggregation to hourly anomalies
-- `TimeDayAnomaly`: Aggregation to daily anomalies
-- `TimeMonthAnomaly`: Aggregation to monthly anomalies
-- `TimeYearAnomaly`: Aggregation to yearly anomalies
-- `TimeDayMSCAnomaly`: Aggregation to daily MSC (Multi-year Seasonal Cycle) anomalies
-- `TimeMonthMSCAnomaly`: Aggregation to monthly MSC anomalies
+### Calendar methods
 
-### Climatological Statistics
+The calendar methods are legacy aliases kept for backward compatibility. Each one is
+the period method in the same row, and gives the same samplers, values and labels,
+including for `skip_sampling`. They resolve from their snake case names, which
+existing configurations use. New code should use the period methods.
 
-- `TimeDayMSC`: Aggregation to daily Multi-year Seasonal Cycle (MSC)
-- `TimeMonthMSC`: Aggregation to monthly Multi-year Seasonal Cycle (MSC)
-- `TimeDayIAV`: Aggregation to daily Inter-Annual Variability (IAV)
-- `TimeMonthIAV`: Aggregation to monthly Inter-Annual Variability (IAV)
-- `TimeHourDayMean`: Aggregation to mean of hourly data over days
+| Calendar method | Name | Period method | Spec |
+|---|---|---|---|
+| `TimeHour()` | `"hour"` | `TimePeriodSample(Hour(1))` | `"1-hour"` |
+| `TimeDay()` | `"day"` | `TimePeriodSample(Day(1))` | `"1-day"` |
+| `TimeMonth()` | `"month"` | `TimePeriodSample(Month(1))` | `"1-month"` |
+| `TimeYear()` | `"year"` | `TimePeriodSample(Year(1))` | `"1-year"` |
+| `TimeHourAnomaly()` | `"hour_anomaly"` | `TimePeriodAnomaly(Hour(1))` | `"1-hour_anomaly"` |
+| `TimeDayAnomaly()` | `"day_anomaly"` | `TimePeriodAnomaly(Day(1))` | `"1-day_anomaly"` |
+| `TimeMonthAnomaly()` | `"month_anomaly"` | `TimePeriodAnomaly(Month(1))` | `"1-month_anomaly"` |
+| `TimeYearAnomaly()` | `"year_anomaly"` | `TimePeriodAnomaly(Year(1))` | `"1-year_anomaly"` |
+| `TimeHourDayMean()` | `"hour_day_mean"` | `TimePeriodMSC(Hour(1), Day(1))` | `"1-hour_msc_day"` |
+| `TimeDayMSC()` | `"day_MSC"` | `TimePeriodMSC(Day(1))` | `"1-day_msc"` |
+| `TimeMonthMSC()` | `"month_MSC"` | `TimePeriodMSC(Month(1))` | `"1-month_msc"` |
+| `TimeDayMSCAnomaly()` | `"day_MSC_anomaly"` | `TimePeriodMSCAnomaly(Day(1))` | `"1-day_msc_anomaly"` |
+| `TimeMonthMSCAnomaly()` | `"month_MSC_anomaly"` | `TimePeriodMSCAnomaly(Month(1))` | `"1-month_msc_anomaly"` |
+| `TimeDayIAV()` | `"day_IAV"` | `TimePeriodIAV(Day(1))` | `"1-day_iav"` |
+| `TimeMonthIAV()` | `"month_IAV"` | `TimePeriodIAV(Month(1))` | `"1-month_iav"` |
 
-### Period Based
+`examples/calendar_vs_nstep.jl` checks every row of this table and plots the outputs
+of both methods.
 
-- `TimePeriodSample`: Aggregation to bins of an n-unit period
-- `TimePeriodAnomaly`: Aggregation to anomalies of n-unit bins
-- `TimePeriodMSC`: Aggregation to the mean seasonal or diurnal cycle of n-unit bins
-- `TimePeriodMSCAnomaly`: Aggregation to anomalies of the mean cycle of n-unit bins
-- `TimePeriodIAV`: Aggregation to the inter-annual variability of n-unit bins
+### Time selection
 
-The calendar methods `TimeHour`, `TimeDay`, `TimeMonth` and `TimeYear` and their
-anomaly, MSC and IAV variants are built on these period methods.
+The selection methods pick time steps instead of resampling them, so they have no
+period equivalent and are not accepted by `TimeResampler`. Apply them with
+`do_time_sampling(dat, samplers, TimeIndexed())`, which selects along the first
+dimension.
 
-### Time Selection
-
-- `TimeAllYears`: Aggregation/slicing to include all years
-- `TimeFirstYear`: Aggregation/slicing of the first year
-- `TimeRandomYear`: Aggregation/slicing of a random year
-- `TimeShuffleYears`: Aggregation/slicing/selection of shuffled years
+| Method | Name | Selects |
+|---|---|---|
+| `TimeAllYears()` | `"all_years"` | every time step |
+| `TimeFirstYear()` | `"first_year"` | the time steps of the first year |
+| `TimeRandomYear()` | `"random_year"` | the time steps of one random year |
+| `TimeShuffleYears()` | `"shuffle_years"` | whole years in a random order |
 
 ## Usage Examples
 

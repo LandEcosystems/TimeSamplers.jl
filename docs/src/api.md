@@ -29,12 +29,8 @@ function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip
     return [all_agg,]
 end
 
-function create_TimeSampler(date_vector, t_step::TimeSkippableCalendarMethod, sampler_func=mean, skip_sampling=false)
+function create_TimeSampler(date_vector, t_step::TimeCalendarMethod, sampler_func=mean, skip_sampling=false)
     return create_TimeSampler(date_vector, getTimePeriodMethod(t_step), sampler_func, skip_sampling)
-end
-
-function create_TimeSampler(date_vector, t_step::TimeNonSkippableCalendarMethod, sampler_func=mean, skip_sampling=false)
-    return getPeriodSamplers(date_vector, getTimePeriodMethod(t_step), sampler_func)
 end
 
 function create_TimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, skip_sampling=false)
@@ -87,7 +83,9 @@ end
 function do_time_sampling(dat, time_samplers, ::TimeIndexed)
     time_sampler = first(time_samplers)
     checkTimeLength(dat, time_sampler.n_time, 1)
-    return dat[time_sampler.indices...]
+    # the indices are flat for one year and one group per year for shuffled years
+    time_inds = reduce(vcat, time_sampler.indices)
+    return dat[time_inds, ntuple(_ -> Colon(), ndims(dat) - 1)...]
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeNoDiff)
