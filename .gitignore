@@ -63,3 +63,4 @@ package-lock.json
 .qodo
 
 examples/output
+!docs/src/assets/banner.png
