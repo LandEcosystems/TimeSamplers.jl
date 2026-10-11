@@ -2,7 +2,7 @@
 
 ![Synthetic hourly temperature resampled to 6-hour and daily bins, to 8-day and monthly bins, and to mean seasonal cycles](assets/banner.png)
 
-A Julia package for temporal sampling, aggregation, and resampling of time series data.
+A Julia package for temporal sampling, aggregation, and resampling of N-dimensional arrays along their time dimension.
 
 ## Quick start
 
