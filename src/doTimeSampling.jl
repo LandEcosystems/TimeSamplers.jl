@@ -51,7 +51,7 @@ julia> data = [1.0, 2.0, 3.0, 4.0, 5.0]
  5.0
 
 julia> sampler = create_TimeSampler(dates, TimeDay())[1]
-TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean)
+TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean, 5)
 
 julia> time_sampling(data, sampler)
 5-element Vector{Float64}:
@@ -62,7 +62,7 @@ julia> time_sampling(data, sampler)
  5.0
 
 julia> monthly_sampler = create_TimeSampler(dates, TimeMonth())[1]
-TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:5], Statistics.mean)
+TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:5], Statistics.mean, 5)
 
 julia> time_sampling(data, monthly_sampler)
 1-element Vector{Float64}:
@@ -123,7 +123,7 @@ julia> data = [1.0, 2.0, 3.0, 4.0, 5.0]
 
 julia> samplers = create_TimeSampler(dates, TimeDay())
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean, 5)
 
 julia> do_time_sampling(data, samplers)
 5-element Vector{Float64}:
@@ -135,8 +135,8 @@ julia> do_time_sampling(data, samplers)
 
 julia> anomaly_samplers = create_TimeSampler(dates, TimeDayAnomaly())
 2-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean)
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:5], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5], Statistics.mean, 5)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:5], Statistics.mean, 5)
 
 julia> do_time_sampling(data, anomaly_samplers, TimeDiff())
 5-element Vector{Float64}:
@@ -154,7 +154,9 @@ function do_time_sampling(dat, time_samplers)
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeIndexed)
-    return dat[first(time_samplers).indices...]
+    time_sampler = first(time_samplers)
+    checkTimeLength(dat, time_sampler.n_time, 1)
+    return dat[time_sampler.indices...]
 end
 
 function do_time_sampling(dat, time_samplers, ::TimeNoDiff)

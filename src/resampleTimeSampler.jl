@@ -358,7 +358,7 @@ function getPeriodSamplers end
 
 function getPeriodSamplers(date_vector, t_step::TimePeriodSample, sampler_func)
     stepvectime = getTimeArray(getPeriodIndices(date_vector, t_step.period, t_step.origin), getTypeOfTimeIndexArray())
-    return [TimeSample(stepvectime, sampler_func),]
+    return [TimeSample(stepvectime, sampler_func, length(date_vector)),]
 end
 
 function getPeriodSamplers(date_vector, t_step::TimePeriodAnomaly, sampler_func)
@@ -371,7 +371,7 @@ function getPeriodSamplers(date_vector, t_step::TimePeriodMSC, sampler_func)
     _, positions = getCyclePositions(date_vector, t_step.period, t_step.cycle; leap_aligned=true)
     _, position_inds = getIndicesForUniqueKeys(positions)
     msc_inds = [getTimeArray(inds, getTypeOfTimeIndexArray()) for inds in position_inds]
-    return [TimeSample(msc_inds, sampler_func),]
+    return [TimeSample(msc_inds, sampler_func, length(date_vector)),]
 end
 
 function getPeriodSamplers(date_vector, t_step::TimePeriodMSCAnomaly, sampler_func)
@@ -388,8 +388,8 @@ function getPeriodSamplers(date_vector, t_step::TimePeriodIAV, sampler_func)
     position_lookup = Dict(p => i for (i, p) in enumerate(unique_positions))
     # every bin gets the indices of all timesteps at the cycle position of that bin
     iav_inds = [getTimeArray(position_inds[position_lookup[positions[first(r)]]], getTypeOfTimeIndexArray()) for r in bin_inds]
-    bin_agg = TimeSample(getTimeArray(bin_inds, getTypeOfTimeIndexArray()), sampler_func)
-    return [bin_agg, TimeSample(iav_inds, sampler_func)]
+    bin_agg = TimeSample(getTimeArray(bin_inds, getTypeOfTimeIndexArray()), sampler_func, length(date_vector))
+    return [bin_agg, TimeSample(iav_inds, sampler_func, length(date_vector))]
 end
 
 """

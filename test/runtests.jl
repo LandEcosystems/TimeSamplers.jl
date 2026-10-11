@@ -54,6 +54,15 @@ end
         # Diff (anomaly): daily - mean(all)
         anomaly = create_TimeSampler(dates, TimeDayAnomaly())
         @test do_time_sampling(data, anomaly, TimeDiff()) == data .- Statistics.mean(data)
+
+        # every sampler knows the length of its time axis and rejects other data
+        @test all(s -> s.n_time == length(dates), anomaly)
+        @test_throws ErrorException time_sampling(data[1:4], daily[1])
+        @test_throws ErrorException time_sampling([data; 6.0], monthly[1])
+        @test_throws ErrorException do_time_sampling(data[1:4], anomaly, TimeDiff())
+        all_years = create_TimeSampler(dates, TimeAllYears())
+        @test do_time_sampling(data, all_years, TimeIndexed()) == data
+        @test_throws ErrorException do_time_sampling([data; 6.0], all_years, TimeIndexed())
     end
 
     @testset "parse_temporal_resolution" begin
@@ -327,14 +336,17 @@ end
         rs_sum = TimeResampler(hourly, :day; sampler_func=sum)
         @test time_resample(x, rs_sum) ≈ time_resample(x, hourly, :day; sampler_func=sum)
         @test time_resample(permutedims(x), rs_sum; dim=2) ≈ permutedims(time_resample(x, rs_sum))
+        @test_throws ErrorException time_resample(x[1:10, :], rs_sum)
 
         # a skipped first sampler returns the data as it is, of any length
         rs_skip = TimeResampler(hourly, "hour"; skip_sampling=true)
         @test first(rs_skip.samplers) === nothing
         @test time_resample(x, rs_skip) === x
         @test time_resample(x[1:10, :], rs_skip) == x[1:10, :]
+        # the second sampler of an anomaly still checks the length
         rs_skip_anomaly = TimeResampler(hourly, "hour_anomaly"; skip_sampling=true)
         @test time_resample(x, rs_skip_anomaly) ≈ x .- mean(x; dims=1)
+        @test_throws ErrorException time_resample(x[1:10, :], rs_skip_anomaly)
 
         # selections do not resample
         @test_throws ErrorException TimeResampler(hourly, "first_year")

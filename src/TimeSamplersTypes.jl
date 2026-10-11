@@ -50,10 +50,13 @@ define a type for temporal sampling/aggregation of an array
 # Fields:
 - `indices::I`: indices to be collected for sampling/aggregation
 - `sampler_func::sampler_func`: a function to use for sampling/aggregation, defaults to mean
+- `n_time::Int`: the number of time steps in the time axis the indices were built
+  for, which the data must match along the sampled dimension
 """
 struct TimeSample{I,sampler_func} <: TimeSampler
     indices::I
     sampler_func::sampler_func
+    n_time::Int
 end
 purpose(::Type{TimeSample}) = "define a type for temporal sampling/aggregation of an array"
 

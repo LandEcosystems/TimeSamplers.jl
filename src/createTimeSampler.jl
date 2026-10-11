@@ -46,16 +46,16 @@ julia> dates = collect(Date(2000, 1, 1):Day(1):Date(2000, 1, 10))
 
 julia> daily_sampler = create_TimeSampler(dates, TimeDay())
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean, 10)
 
 julia> monthly_sampler = create_TimeSampler(dates, "TimeMonth")
 1-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean, 10)
 
 julia> anomaly_sampler = create_TimeSampler(dates, TimeDayAnomaly())
 2-element Vector{TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}}:
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean)
- TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9, 10:10], Statistics.mean, 10)
+ TimeSample{Vector{UnitRange{Int64}}, typeof(Statistics.mean)}(UnitRange{Int64}[1:10], Statistics.mean, 10)
 ```
 """
 function create_TimeSampler end
@@ -66,12 +66,12 @@ function create_TimeSampler(date_vector, t_step::Union{String, Symbol}, sampler_
 end
 
 function create_TimeSampler(date_vector, ::TimeMean, sampler_func=mean, skip_sampling=false)
-    mean_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func)
+    mean_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [mean_agg,]
 end
 
 function create_TimeSampler(date_vector, ::TimeAllYears, sampler_func=mean, skip_sampling=false)
-    all_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func)
+    all_agg = TimeSample(getAllTimeIndices(date_vector), sampler_func, length(date_vector))
     return [all_agg,]
 end
 
@@ -96,7 +96,7 @@ function create_TimeSampler(date_vector, ::TimeFirstYear, sampler_func=mean, ski
     years = year.(date_vector)
     first_year = minimum(years)
     year_inds = getIndexForSelectedYear(years, first_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -104,7 +104,7 @@ function create_TimeSampler(date_vector, ::TimeRandomYear, sampler_func=mean, sk
     years = year.(date_vector)
     random_year = rand(unique(years))
     year_inds = getIndexForSelectedYear(years, random_year)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
@@ -113,7 +113,7 @@ function create_TimeSampler(date_vector, ::TimeShuffleYears, sampler_func=mean, 
     unique_years = unique(years)
     shuffled_unique_years = sample(unique_years, length(unique_years), replace=false)
     year_inds = getIndexForSelectedYear.(Ref(years), shuffled_unique_years)
-    year_agg = TimeSample(year_inds, sampler_func)
+    year_agg = TimeSample(year_inds, sampler_func, length(date_vector))
     return [year_agg,]
 end
 
