@@ -1,6 +1,6 @@
 name = "TimeSamplers"
 uuid = "a27efc82-29b7-4223-84cd-12fc64c7a5bb"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["TimeSamplers.jl Contributors"]
 description = "A package for temporal sampling, aggregation, and resampling of time series data"
 license = "EUPL-1.2"
